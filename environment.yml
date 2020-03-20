@@ -1,0 +1,20 @@
+name: scanpy
+channels:
+  - anaconda
+  - plotly
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=3.6
+  - scipy=1.4
+  - scikit-learn=0.22
+  - plotly=4.5
+  - seaborn=0.10
+  - statsmodels=0.11
+  - scanpy
+  - leidenalg
+  - h5py=2.7
+  - spyder=4.0.1
+  - spyder-kernels=1.8.1
+
+# pip install scikit-posthocs
