@@ -267,6 +267,7 @@ def streamSC(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
     # initialise empty array for previous batch
     # this is to prevent using concatenate (memory hungry) --- to benchmark
     C = np.empty((n_genes, lowrankdim + stream))
+    print(C.shape)
     
     # do the streaming
     print("streaming the remaining cells ...")
@@ -278,25 +279,23 @@ def streamSC(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
         else:
             j = stream
         
-        # obtain current batch, concatenate to previous batch and increment counter
+        # obtain current stream and concatenate to previous batch
         current_cells = np.transpose(adata.X[i:(i+j), ])
-        C[:, :lowrankdim] = B # add landmarks from prebious batch
+        C[:, :lowrankdim] = B # landmarks from previous stream
         C[:, lowrankdim: ] = current_cells
-        print(i, i + j, current_cells.shape)
         
         # svd operations
-        #U, s, Vh = svd(np.transpose(adata.X[i:(i+j),]), lowrankdim)
-        #s2 = s**2
-        #s_norm = np.sqrt(s2 - s2[-1])
-        #B = np.dot(U, np.diag(s_norm))
+        U, s, Vh = svd(C, lowrankdim)
+        s2 = s**2
+        s_norm = np.sqrt(s2 - s2[-1])
+        B = np.dot(U, np.diag(s_norm))
 
         # for consensus results
         # these is for nParallele executions of B    
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
         
+        print(i, i + j, current_cells.shape, U.shape)
         i += j
-        
-        # get U and B from previous time step (need to deepcopy?)
         
     # unrandomise the ordering
     print("... stream finished!\n")
