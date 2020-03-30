@@ -77,11 +77,119 @@ sc.pl.umap(adata, color='leiden')
 
 adata.X.shape
 
-def decompose_matrix_svd(X, no_components)
+from scipy import linalg
+from sklearn.decomposition import TruncatedSVD
+
+def svd_scipy(X, n_components):
+    """
+    Singular value decomposition using `scipy.linalg.svd`.
+    Returned matrices are truncated to the value of `n_components`.
+
+    Parameters
+    ----------
+    X : TYPE
+        DESCRIPTION.
+    n_components : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    U : TYPE
+        DESCRIPTION.
+    s : TYPE
+        DESCRIPTION.
+    Vh : TYPE
+        DESCRIPTION.
+
+    """
+    U, s, Vh = linalg.svd(X, full_matrices=False)
+    U  = U[:, :n_components]
+    s  = s[:n_components]
+    Vh = Vh[:n_components, ]
+    return U, s, Vh
+
+def inv_svd(U, s, Vh):
+    """
+    Inverse of the singular value decomposition.
+
+    Parameters
+    ----------
+    U : TYPE
+        DESCRIPTION.
+    s : TYPE
+        DESCRIPTION.
+    Vh : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    return np.dot(U, np.dot(np.diag(s), Vh))
+
+def svd_sklearn(X, n_components, n_iter=5, random_state=None):
+    """
+    Truncated singular value decomposition using `scikitlearn`.
+
+    Parameters
+    ----------
+    X : TYPE
+        DESCRIPTION.
+    n_components : TYPE
+        DESCRIPTION.
+    n_iter : TYPE, optional
+        DESCRIPTION. The default is 5.
+    random_state : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    U : TYPE
+        DESCRIPTION.
+    s : TYPE
+        DESCRIPTION.
+    Vh : TYPE
+        DESCRIPTION.
+
+    """
+    svd = TruncatedSVD(n_components, algorithm="randomized", n_iter=n_iter,
+                       random_state=random_state)
+    U = svd.fit_transform(X)
+    s = svd.singular_values_
+    Vh = svd.components_
+    U = U / np.tile(s, (U.shape[0],1)) # by default, U is scaled by s
+    return U, s, Vh
+
+def calculate_rmse(A, B):
+    error = A - B
+    return np.sum(error ** 2)
 
 
-def streamSC(data, k = 3, batchmode = False, initial = 0.2,
-             stream = 0.02, lowrankdim = 0.05, iterations = 5,
+calculate_rmse(inv_svd(A[0], A[1], A[2]), adata.X)
+calculate_rmse(inv_svd(B[0], B[1], B[2]), adata.X)
+
+l = round(0.2 * adata.X.shape[1])
+A = svd_scipy(adata.X, l)
+B = svd_sklearn(adata.X, l)
+
+inv_svd(A[0], A[1], A[2])
+inv_svd(B[0], B[1], B[2])
+
+
+svd_random = TruncatedSVD(l, algorithm="randomized", random_state=None)
+U2  = svd_random.fit_transform(adata.X) # this has already been scaled by the singular vectors
+Vh2 = svd_random.components_ 
+s2  = svd_random.singular_values_ 
+U2_uns = U2 / np.tile(s2, (U2.shape[0], 1))
+reconstructed2 = svd_random.inverse_transform(U2) # you need to keep the svd_random object
+reconstructed2_manual = np.dot(U2, Vh2)
+    
+    
+
+def streamSC(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
+             initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
              initialmin = 10**3, streammin = 10,
              initialmax = 10**5, streammax = 100):
     
@@ -122,6 +230,11 @@ def streamSC(data, k = 3, batchmode = False, initial = 0.2,
     
     # choose the SVD solver
     # need to factor in random seed
+    if svd_algorithm == "sklearn":
+        svd = svd_sklearn(X, lowrankdim, n_iter=5, random_state=None)
+    elif svd_algorithm == "scipy":
+        svd_scipy(X, lowrankdim)
+        
     
     # initialise empty array for "previous batch"
     # row: genes, cell: low rank dim
@@ -190,7 +303,6 @@ def streamSC(data, k = 3, batchmode = False, initial = 0.2,
     # unrandomise the ordering
     print("stream finished...")
 
-
 #######################################################
 # testing svd methods
 
@@ -204,7 +316,7 @@ from scipy import linalg
 # low rank dimension
 l = round(0.5 * adata.X.shape[1])
 
-U, s, Vh = linalg.svd(adata.X, full_matrices=False)
+U, s, Vh = linalg.svd(adata.X, full_matrices=True)
 U.shape,  s.shape, Vh.shape # (n_cells, n_genes), (n_genes,), (n_genes, n_genes)
 
 reconstructed_full = np.dot(U, np.dot(np.diag(s), Vh))
