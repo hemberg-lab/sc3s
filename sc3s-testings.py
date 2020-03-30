@@ -231,16 +231,29 @@ def streamSC(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
     # choose the SVD solver
     # need to factor in random seed
     if svd_algorithm == "sklearn":
-        svd = svd_sklearn(X, lowrankdim, n_iter=5, random_state=None)
+        svd = svd_sklearn
     elif svd_algorithm == "scipy":
-        svd_scipy(X, lowrankdim)
+        svd = svd_scipy
         
+    # SVD of the first, initial large batch
+    i, j = 0, initial
+    print("clustering the initial batch ...")
+    print(i, j)
+    U, s, Vh = svd(np.transpose(adata.X[i:(i+j),]), lowrankdim)
     
     # initialise empty array for "previous batch"
     # row: genes, cell: low rank dim
-    B = np.empty((n_genes, lowrankdim))
-    #U = [] # rotation matrix (don't think this is needed, this is not Julia)
+    # B = np.empty((n_genes, lowrankdim))
+    # U = [] # rotation matrix (don't think this is needed, this is not Julia)
     
+    # normalise the sigma singular values (step 7 of strmEMB)
+    s2 = s**2
+    s_norm = np.sqrt(s2 - s2[-1])
+    
+    # scale the columns in U with normalised singular values
+    B = np.dot(U, np.diag(s_norm))
+    print(B.shape)
+
     # for consensus results
     # these is for nParallele executions of B    
     #compM1 = zeros(nParallel, lowRankCells+1, maxK);
@@ -248,60 +261,47 @@ def streamSC(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
     # centroids
     # to come
     
+    print("... initial batch finished!\n")
+    i += initial
+    
+    # initialise empty array for previous batch
+    # this is to prevent using concatenate (memory hungry) --- to benchmark
+    C = np.empty((n_genes, lowrankdim + stream))
+    
     # do the streaming
-    i = 0
-    print("beginning stream...")
+    print("streaming the remaining cells ...")
     while i < n_cells:
-        
         # obtain range of current stream
-        if i == 0:
-            j = initial # the initial batch
-        elif (n_cells - i) < stream:
+        if (n_cells - i) < stream:
             j = n_cells - i  # last stream may not be exact size
+            C = C[:, :(lowrankdim + j)] # resize
         else:
             j = stream
         
         # obtain current batch, concatenate to previous batch and increment counter
-        current_cells = adata.X[i:(i+j), ]
+        current_cells = np.transpose(adata.X[i:(i+j), ])
+        C[:, :lowrankdim] = B # add landmarks from prebious batch
+        C[:, lowrankdim: ] = current_cells
         print(i, i + j, current_cells.shape)
         
-        # should consider putting the first batch outside, because the size is so different?
-        # would also make it easier to benchmark later on
-        if i == 0:
-            
-        # need deepcopy?
+        # svd operations
+        #U, s, Vh = svd(np.transpose(adata.X[i:(i+j),]), lowrankdim)
+        #s2 = s**2
+        #s_norm = np.sqrt(s2 - s2[-1])
+        #B = np.dot(U, np.diag(s_norm))
+
+        # for consensus results
+        # these is for nParallele executions of B    
+        #compM1 = zeros(nParallel, lowRankCells+1, maxK);
         
         i += j
         
         # get U and B from previous time step (need to deepcopy?)
-        if i
-        
-        """
-        # get U and B from previous step
-        Uold = deepcopy(U); Bold = deepcopy(B);
-
-        # append the new stream, otherwise use the first batch 
-        # compM1 is denoted as C_t in the paper
-        if ~isempty(B)
-            compM1 = convert(Array{Float64, 2}, hcat(B, current_cells)); #step5 of alg5
-        else
-            compM1 = current_cells;
-        end
-        
-        # perform the SVD
-        tmp = svd(compM1);
-        U = tmp.U[:,1:lowRankCells];
-        S = tmp.S[1:lowRankCells];
-        V = tmp.V[:,1:lowRankCells];
-
-        # normalise the sigma singular values (step 7 of strmEMB)
-        delta = S[lowRankCells]^2;
-        Sn = diagm(0 => max.((S.^2 .- delta), 0).^(1/2));
-        Bfull = real(U * Sn);
-        """
         
     # unrandomise the ordering
-    print("stream finished...")
+    print("... stream finished!\n")
+    
+    return 0
 
 #######################################################
 # testing svd methods
