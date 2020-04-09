@@ -4,6 +4,7 @@ import scanpy as sc
 import math
 from scipy import linalg
 from sklearn.decomposition import TruncatedSVD
+from scipy.cluster.vq import kmeans2 as kmeans
 
 def svd_scipy(X, n_components):
     """
@@ -206,7 +207,7 @@ def streamSC(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
     return U, s, Vh
 
 
-def generate_microclusters(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
+def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "sklearn",
                            initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
                            initialmin = 10**3, streammin = 10,
                            initialmax = 10**5, streammax = 100):
@@ -279,7 +280,10 @@ def generate_microclusters(data, k = 3, batchmode = False, svd_algorithm = "skle
     # these is for nParallele executions of B    
     #compM1 = zeros(nParallel, lowRankCells+1, maxK);
     
-    # centroids
+    # cluster the first batch and obtain centroids
+        # initialise array first I think TO DO!!!!!!!!
+    centroids, assignments = kmeans(U, k, iter=100, thresh=1e-5)
+
     # to come
     
     print("... initial batch finished!\n")
@@ -313,36 +317,40 @@ def generate_microclusters(data, k = 3, batchmode = False, svd_algorithm = "skle
         s_norm = s # s_norm = np.sqrt(s2 - s2[-1])
         B = np.dot(np.diag(s_norm), Vh) # B = np.dot(U, np.diag(s_norm))
 
+        
+
         # for consensus results
         # these is for nParallel executions of B    
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
+        combined = np.concatenate((centroids, U), axis=0)
+        centroids, assignments = kmeans(combined, 
+            centroids, iter=100, thresh=1e-5, minit="matrix")
         
-        print(i, i + j, current_cells.shape, Vh.shape)
+        # rotate centroids using the right singular vectors
+
+        print(i, i + j, current_cells.shape, Vh.shape, combined.shape)
         i += j
         
     # unrandomise the ordering
     print("... stream finished!\n")
     
-    return U, s, Vh
+    return centroids, U #U, s, Vh
 
 
-#streamSC(adata, 5)
 
-generate_microclusters(adata, 5)
-
-
-a = streamSC(adata, 5)
-b = generate_microclusters(adata, 5)
-
-a[0].shape, a[1].shape, a[2].shape
-b[0].shape, b[1].shape, b[2].shape
-
-a_re = np.dot(a[0], np.dot(np.diag(a[1]), a[2]))
-b_re = np.dot(b[0], np.dot(np.diag(b[1]), b[2]))
+def streaming_kmeans(x, centroids):
+    # stream the x points into the centroids, maintaining the same number of centroids
+    centroids, assignments = kmeans(x, centroids, iter=100, thresh=1e-5, minit="matrix")
+    pass
 
 
-import plotly.io as pio
-pio.renderers.default = "browser"
-import plotly.express as px
-px.imshow(np.transpose(a_re))
-px.imshow(b_re)
+
+# a = streamSC(adata, 5)
+# b = generate_microclusters(adata, 5)
+
+# a[0].shape, a[1].shape, a[2].shape
+# b[0].shape, b[1].shape, b[2].shape
+
+# a_re = np.dot(a[0], np.dot(np.diag(a[1]), a[2]))
+
+# b_re = np.dot(b[0], np.dot(np.diag(b[1]), b[2]))
