@@ -92,121 +92,6 @@ def calculate_rmse(A, B):
     error = A - B
     return np.sum(error ** 2)
 
-def streamSC(data, k = 3, batchmode = False, svd_algorithm = "sklearn",
-             initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
-             initialmin = 10**3, streammin = 10,
-             initialmax = 10**5, streammax = 100):
-    
-    # initialmin is a hard limit below which we use batch clustering
-    # it could be eventually hard coded into the algorithm
-    # streammin can also be hard coded
-    # we probably also do the same for their maximum
-    assert initialmin <= initialmax
-    assert streammin <= streammax
-    
-    # randomise ordering of cells
-    # expr_matrix = np.transpose(data.X) 
-    
-    # obtain and calculate useful values
-    # there's quite some edge cases that I need to think about for this part
-    n_cells, n_genes = data.X.shape
-
-    # calculate low rank representation size
-    # we want the representation of cells in a lower dimensionality space, not of genes
-    # I actually think rounding up is a mistake, should round down and throw an error if needed
-    lowrankdim = math.ceil(lowrankdim * n_cells)
-
-    # calculate size of initial stream
-    if n_cells < initialmin + 1:
-        initial = n_cells
-    else:
-        initial = int(math.ceil(initial * n_cells / 10) * 10) # nearest 10th
-        if initial > n_cells: # can this happen in practice?
-            initial = n_cells
-            
-    # calculate size of subsequent streams
-    if initial != n_cells:
-        stream = int(math.ceil(stream * n_cells / 10) * 10) # nearest 10th
-        if stream < streammin + 1:
-            stream = streammin
-        elif stream > streammax:
-            stream = streammax
-    
-    # choose the SVD solver
-    # need to factor in random seed
-    if svd_algorithm == "sklearn":
-        svd = svd_sklearn
-    elif svd_algorithm == "scipy":
-        svd = svd_scipy
-        
-    # SVD of the first, initial large batch
-    i, j = 0, initial
-    print("clustering the initial batch ...")
-    print(i, j)
-    U, s, Vh = svd(np.transpose(data.X[i:(i+j),]), lowrankdim)
-    
-    # initialise empty array for "previous batch"
-    # row: genes, cell: low rank dim
-    # B = np.empty((n_genes, lowrankdim))
-    # U = [] # rotation matrix (don't think this is needed, this is not Julia)
-    
-    # normalise the sigma singular values (step 7 of strmEMB)
-    s2 = s**2
-    s_norm = np.sqrt(s2 - s2[-1])
-    
-    # scale the columns in U with normalised singular values
-    B = np.dot(U, np.diag(s_norm))
-    print(B.shape)
-
-    # for consensus results
-    # these is for nParallele executions of B    
-    #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-    
-    # centroids
-    # to come
-    
-    print("... initial batch finished!\n")
-    i += initial
-    
-    # initialise empty array for previous batch
-    # this is to prevent using concatenate (memory hungry) --- to benchmark
-    C = np.empty((n_genes, lowrankdim + stream))
-    print(C.shape)
-    
-    # do the streaming
-    print("streaming the remaining cells ...")
-    while i < n_cells:
-        # obtain range of current stream
-        if (n_cells - i) < stream:
-            j = n_cells - i  # last stream may not be exact size
-            C = C[:, :(lowrankdim + j)] # resize
-        else:
-            j = stream
-        
-        # obtain current stream and concatenate to previous batch
-        current_cells = np.transpose(data.X[i:(i+j), ])
-        C[:, :lowrankdim] = B # landmarks from previous stream
-        C[:, lowrankdim: ] = current_cells
-        
-        # svd operations
-        U, s, Vh = svd(C, lowrankdim)
-        s2 = s**2
-        s_norm = s # s_norm = np.sqrt(s2 - s2[-1])
-        B = np.dot(U, np.diag(s_norm))
-
-        # for consensus results
-        # these is for nParallel executions of B    
-        #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-        
-        print(i, i + j, current_cells.shape, U.shape)
-        i += j
-        
-    # unrandomise the ordering
-    print("... stream finished!\n")
-    
-    return U, s, Vh
-
-
 def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "sklearn",
                            initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
                            initialmin = 10**3, streammin = 10,
@@ -261,12 +146,11 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     i, j = 0, initial
     print("clustering the initial batch ...")
     print(i, j)
-    U, s, Vh = svd(data.X[i:(i+j),], lowrankdim) # svd(np.transpose(data.X[i:(i+j),]), lowrankdim) 
+    U, s, Vh = svd(data.X[i:(i+j),], lowrankdim)
     
-    # initialise empty array for "previous batch"
+    # initialise empty arrays for "previous batch" (B) and previous V
     # row: genes, cell: low rank dim
-    # B = np.empty((n_genes, lowrankdim))
-    # U = [] # rotation matrix (don't think this is needed, this is not Julia)
+    # (don't think this is needed, this is not Julia)
     
     # normalise the sigma singular values (step 7 of strmEMB)
     s2 = s**2
@@ -283,10 +167,9 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     # prepare empty arrays for centroid coordinates and cell assignments
     centroids = np.empty((k, lowrankdim))
     assignments = np.empty(n_cells, dtype='int32')
-    print(assignments.shape)
     
     # cluster the first batch and obtain centroids
-    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=100, thresh=1e-5)
+    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=500, thresh=1e-5)
     
     print("... initial batch finished!\n")
     i += initial
@@ -307,31 +190,31 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
             j = stream
         
         # obtain current stream and concatenate to previous batch
-        current_cells = data.X[i:(i+j), ] # np.transpose(data.X[i:(i+j), ])
-        # C[:, :lowrankdim] = B # landmarks from previous stream
-        # C[:, lowrankdim: ] = current_cells
+        current_cells = data.X[i:(i+j), ]
         C[:lowrankdim, :] = B # landmarks from previous stream
-        C[lowrankdim:, : ] = current_cells
+        C[lowrankdim:, :] = current_cells
 
         # svd operations
+        Vh_old = Vh
         U, s, Vh = svd(C, lowrankdim)
         s2 = s**2
-        s_norm = s # s_norm = np.sqrt(s2 - s2[-1])
+        s_norm = np.sqrt(s2 - s2[-1])
         B = np.dot(np.diag(s_norm), Vh) # B = np.dot(U, np.diag(s_norm))
 
         # rotate centroids into the new landmark space (using the right singular vectors)
-        # then concatenate with the coordinates of the current cells
-        centroids = np.dot(centroids, np.dot(Vh, np.transpose(Vh)))
-        combined = np.concatenate((centroids, U[lowrankdim:,]), axis=0)
+        centroids = np.dot(centroids, np.dot(Vh_old, np.transpose(Vh)))
+        
+        # normalise the current cells
+        new_u = U[lowrankdim:,]
+        norms = np.transpose(np.tile(np.linalg.norm(new_u, axis=1), (lowrankdim, 1)))
+        new_u = new_u / norms # normalise the landmarks in each cell (by row)
+
+        combined = np.concatenate((centroids, new_u), axis=0)
 
         # for consensus results
         # these is for nParallel executions of B    
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-        
-        norms = np.transpose(np.tile(np.linalg.norm(combined, axis=1), (lowrankdim, 1)))
-        combined = combined / norms # normalise the landmarks in each cell (by row)
-
-        centroids, new_assignments = kmeans(combined, centroids, iter=100, thresh=1e-5, minit="matrix")
+        centroids, new_assignments = kmeans(combined, centroids, iter=300, thresh=1e-5, minit="matrix")
         assignments[i:(i+j)] = new_assignments[k:,]
 
         print(i, i + j, current_cells.shape, U[lowrankdim:,].shape, centroids.shape, new_assignments.shape)
