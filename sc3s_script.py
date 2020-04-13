@@ -276,15 +276,17 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     B = np.dot(np.diag(s_norm), Vh) # np.dot(U, np.diag(s_norm)) #change
     print("B: ", B.shape)
 
-    # for consensus results
+    # for consensus results (to come)
     # these is for nParallele executions of B    
     #compM1 = zeros(nParallel, lowRankCells+1, maxK);
     
+    # prepare empty arrays for centroid coordinates and cell assignments
+    centroids = np.empty((k, lowrankdim))
+    assignments = np.empty(n_cells, dtype='int32')
+    print(assignments.shape)
+    
     # cluster the first batch and obtain centroids
-        # initialise array first I think TO DO!!!!!!!!
-    centroids, assignments = kmeans(U, k, iter=100, thresh=1e-5)
-
-    # to come
+    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=100, thresh=1e-5)
     
     print("... initial batch finished!\n")
     i += initial
@@ -317,24 +319,28 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
         s_norm = s # s_norm = np.sqrt(s2 - s2[-1])
         B = np.dot(np.diag(s_norm), Vh) # B = np.dot(U, np.diag(s_norm))
 
-        
+        # rotate centroids into the new landmark space (using the right singular vectors)
+        # then concatenate with the coordinates of the current cells
+        centroids = np.dot(centroids, np.dot(Vh, np.transpose(Vh)))
+        combined = np.concatenate((centroids, U[lowrankdim:,]), axis=0)
 
         # for consensus results
         # these is for nParallel executions of B    
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-        combined = np.concatenate((centroids, U), axis=0)
-        centroids, assignments = kmeans(combined, 
-            centroids, iter=100, thresh=1e-5, minit="matrix")
         
-        # rotate centroids using the right singular vectors
+        norms = np.transpose(np.tile(np.linalg.norm(combined, axis=1), (lowrankdim, 1)))
+        combined = combined / norms # normalise the landmarks in each cell (by row)
 
-        print(i, i + j, current_cells.shape, Vh.shape, combined.shape)
+        centroids, new_assignments = kmeans(combined, centroids, iter=100, thresh=1e-5, minit="matrix")
+        assignments[i:(i+j)] = new_assignments[k:,]
+
+        print(i, i + j, current_cells.shape, U[lowrankdim:,].shape, centroids.shape, new_assignments.shape)
         i += j
         
     # unrandomise the ordering
     print("... stream finished!\n")
     
-    return centroids, U #U, s, Vh
+    return centroids, assignments, U, combined, Vh
 
 
 
