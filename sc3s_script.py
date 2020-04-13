@@ -111,6 +111,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     # there's quite some edge cases that I need to think about for this part
     n_cells, n_genes = data.X.shape
 
+    """
     # calculate low rank representation size
     # we want the representation of cells in a lower dimensionality space, not of genes
     # I actually think rounding up is a mistake, should round down and throw an error if needed
@@ -131,6 +132,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
             stream = streammin
         elif stream > streammax:
             stream = streammax
+    """
     
     # choose the SVD solver
     # need to factor in random seed
@@ -147,6 +149,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     print("clustering the initial batch ...")
     print(i, j)
     U, s, Vh = svd(data.X[i:(i+j),], lowrankdim)
+    print(U.shape, s.shape, Vh.shape)
     
     # initialise empty arrays for "previous batch" (B) and previous V
     # row: genes, cell: low rank dim
@@ -169,7 +172,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     assignments = np.empty(n_cells, dtype='int32')
     
     # cluster the first batch and obtain centroids
-    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=500, thresh=1e-5)
+    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=100, thresh=1e-5)
     
     print("... initial batch finished!\n")
     i += initial
@@ -214,10 +217,20 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
         # for consensus results
         # these is for nParallel executions of B    
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-        centroids, new_assignments = kmeans(combined, centroids, iter=300, thresh=1e-5, minit="matrix")
+        centroids, new_assignments = kmeans(combined, centroids, iter=100, thresh=1e-5, minit="matrix")
+        
+        # update assignments for the previous cells
+        assignments[:i] = new_assignments[assignments[:i]]
         assignments[i:(i+j)] = new_assignments[k:,]
 
-        print(i, i + j, current_cells.shape, U[lowrankdim:,].shape, centroids.shape, new_assignments.shape)
+        print(i, i+j, assignments[0:15])
+
+        """
+        print(i, i + j, 'current cells: ', current_cells.shape, 
+            'U: ', U[lowrankdim:,].shape, 
+            'centroids: ', centroids.shape, 
+            'newly assigned: ', new_assignments[k:, ].shape)
+        """
         i += j
         
     # unrandomise the ordering
