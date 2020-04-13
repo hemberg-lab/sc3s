@@ -81,9 +81,27 @@ adata.X.shape
 
 ###########
 
-import sc3s_script as sc3s
+from scipy.cluster.vq import kmeans2 as kmeans
+kmeans(X, initX, iter=100, thresh=1e-5, minit="matrix")
+
+
+A = generate_microclusters(adata, 8)
+adata.obs['sc3'] = A[1]
+sc.pl.umap(adata, color='sc3')
+
+#streamSC(adata, 5)
+
+generate_microclusters(adata, 5)
+
 
 sc3s.streamSC(adata, 5)
+
+B = streamSC(adata, 5)
+B.shape
+
+sc3s.inv_svd(B[0], B[1], B[2]).shape # not all the cells, but only the last batch
+
+
 
 
 
