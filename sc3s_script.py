@@ -95,7 +95,7 @@ def calculate_rmse(A, B):
 def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "sklearn",
                            initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
                            initialmin = 10**3, streammin = 10,
-                           initialmax = 10**5, streammax = 100):
+                           initialmax = 10**5, streammax = 100, randomcellorder = True):
     
     # initialmin is a hard limit below which we use batch clustering
     # it could be eventually hard coded into the algorithm
@@ -103,13 +103,15 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     # we probably also do the same for their maximum
     assert initialmin <= initialmax
     assert streammin <= streammax
-    
-    # randomise ordering of cells
-    # expr_matrix = np.transpose(data.X) 
-    
+        
     # obtain and calculate useful values
     # there's quite some edge cases that I need to think about for this part
     n_cells, n_genes = data.X.shape
+
+    # look up table for the ordering of cells in the stream
+    lut = np.arange(n_cells) 
+    if randomcellorder is True:
+        np.random.shuffle(lut)
 
     """
     # calculate low rank representation size
@@ -148,7 +150,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     i, j = 0, initial
     print("clustering the initial batch ...")
     print(i, j)
-    U, s, Vh = svd(data.X[i:(i+j),], lowrankdim)
+    U, s, Vh = svd(data.X[lut[i:(i+j)],], lowrankdim)
     print(U.shape, s.shape, Vh.shape)
     
     # initialise empty arrays for "previous batch" (B) and previous V
@@ -172,7 +174,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     assignments = np.empty(n_cells, dtype='int32')
     
     # cluster the first batch and obtain centroids
-    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=500, thresh=1e-5)
+    centroids, assignments[lut[i:(i+j)]] = kmeans(U, k, iter=500, thresh=1e-5)
     
     print("... initial batch finished!\n")
     i += initial
@@ -193,7 +195,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
             j = stream
         
         # obtain current stream and concatenate to previous batch
-        current_cells = data.X[i:(i+j), ]
+        current_cells = data.X[lut[i:(i+j)], ]
         C[:lowrankdim, :] = B # landmarks from previous stream
         C[lowrankdim:, :] = current_cells
 
@@ -227,10 +229,10 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
             centroids, new_assignments = kmeans(combined, centroids, iter=100, thresh=1e-5, minit="matrix")
         
         # update assignments for the previous cells
-        assignments[:i] = new_assignments[assignments[:i]]
-        assignments[i:(i+j)] = new_assignments[k:,]
+        assignments[lut[:i]] = new_assignments[assignments[lut[:i]]]
+        assignments[lut[i:(i+j)]] = new_assignments[k:,]
 
-        print(i, i+j, assignments[0:15])
+        print(i, i+j, assignments[lut[0:15]])
 
         """
         print(i, i + j, 'current cells: ', current_cells.shape, 
@@ -241,9 +243,11 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
         i += j
         
     # unrandomise the ordering
+    reordered_assignments = np.empty(n_cells, dtype=int)
+    reordered_assignments[lut]= assignments[lut]
     print("... stream finished!\n")
     
-    return centroids, assignments, U, combined, Vh
+    return centroids, reordered_assignments, U, combined, Vh
 
 
 
