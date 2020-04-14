@@ -172,7 +172,7 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     assignments = np.empty(n_cells, dtype='int32')
     
     # cluster the first batch and obtain centroids
-    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=100, thresh=1e-5)
+    centroids, assignments[i:(i+j)] = kmeans(U, k, iter=500, thresh=1e-5)
     
     print("... initial batch finished!\n")
     i += initial
@@ -217,7 +217,14 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
         # for consensus results
         # these is for nParallel executions of B    
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-        centroids, new_assignments = kmeans(combined, centroids, iter=100, thresh=1e-5, minit="matrix")
+
+        # assign new cells to centroids
+        # by random chance, we reinitialise the centroids
+        if np.random.rand() < 0.05:
+            centroids, new_assignments = kmeans(combined, k, iter=500, thresh=1e-5, minit="random")
+            print("reinitialised centroids!")
+        else:
+            centroids, new_assignments = kmeans(combined, centroids, iter=100, thresh=1e-5, minit="matrix")
         
         # update assignments for the previous cells
         assignments[:i] = new_assignments[assignments[:i]]
