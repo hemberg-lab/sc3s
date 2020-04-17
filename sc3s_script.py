@@ -10,23 +10,6 @@ def svd_scipy(X, n_components):
     """
     Singular value decomposition using `scipy.linalg.svd`.
     Returned matrices are truncated to the value of `n_components`.
-
-    Parameters
-    ----------
-    X : TYPE
-        DESCRIPTION.
-    n_components : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    U : TYPE
-        DESCRIPTION.
-    s : TYPE
-        DESCRIPTION.
-    Vh : TYPE
-        DESCRIPTION.
-
     """
     U, s, Vh = linalg.svd(X, full_matrices=False)
     U  = U[:, :n_components]
@@ -37,48 +20,12 @@ def svd_scipy(X, n_components):
 def inv_svd(U, s, Vh):
     """
     Inverse of the singular value decomposition.
-
-    Parameters
-    ----------
-    U : TYPE
-        DESCRIPTION.
-    s : TYPE
-        DESCRIPTION.
-    Vh : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    TYPE
-        DESCRIPTION.
-
     """
     return np.dot(U, np.dot(np.diag(s), Vh))
 
 def svd_sklearn(X, n_components, n_iter=5, random_state=None):
     """
     Truncated singular value decomposition using `scikitlearn`.
-
-    Parameters
-    ----------
-    X : TYPE
-        DESCRIPTION.
-    n_components : TYPE
-        DESCRIPTION.
-    n_iter : TYPE, optional
-        DESCRIPTION. The default is 5.
-    random_state : TYPE, optional
-        DESCRIPTION. The default is None.
-
-    Returns
-    -------
-    U : TYPE
-        DESCRIPTION.
-    s : TYPE
-        DESCRIPTION.
-    Vh : TYPE
-        DESCRIPTION.
-
     """
     svd = TruncatedSVD(n_components, algorithm="randomized", n_iter=n_iter,
                        random_state=random_state)
@@ -92,10 +39,20 @@ def calculate_rmse(A, B):
     error = A - B
     return np.sum(error ** 2)
 
-def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "sklearn",
+def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
                            initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
                            initialmin = 10**3, streammin = 10,
                            initialmax = 10**5, streammax = 100, randomcellorder = True):
+    """
+    Cluster the cells into microclusters. k should be set to a relatively large number, maybe a 
+    fraction of the first batch?
+
+    In the code, `centroids` obviously refers to microcentroids.
+
+    To do: incorporate parallel functionality using the same Laplacian.
+
+    Need to modularise steps more (see separate notes).
+    """
     
     # initialmin is a hard limit below which we use batch clustering
     # it could be eventually hard coded into the algorithm
@@ -247,23 +204,4 @@ def generate_microclusters(data, k = 5, batchmode = False, svd_algorithm = "skle
     reordered_assignments[lut]= assignments[lut]
     print("... stream finished!\n")
     
-    return centroids, reordered_assignments, U, combined, Vh
-
-
-
-def streaming_kmeans(x, centroids):
-    # stream the x points into the centroids, maintaining the same number of centroids
-    centroids, assignments = kmeans(x, centroids, iter=100, thresh=1e-5, minit="matrix")
-    pass
-
-
-
-# a = streamSC(adata, 5)
-# b = generate_microclusters(adata, 5)
-
-# a[0].shape, a[1].shape, a[2].shape
-# b[0].shape, b[1].shape, b[2].shape
-
-# a_re = np.dot(a[0], np.dot(np.diag(a[1]), a[2]))
-
-# b_re = np.dot(b[0], np.dot(np.diag(b[1]), b[2]))
+    return centroids, reordered_assignments
