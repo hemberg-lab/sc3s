@@ -178,17 +178,14 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
 
         # assign new cells to centroids
         # by random chance, we reinitialise the centroids
-        if np.random.rand() < 0.05:
-            centroids[:k,], new_assignments = kmeans(centroids, k, iter=500, thresh=1e-5, minit="random")
-            print("reinitialised centroids!")
-        else:
-            centroids[:k,], new_assignments = kmeans(centroids, centroids[:k,], iter=100, thresh=1e-5, minit="matrix")
-        
-        # update assignments for the previous cells
-        assignments[lut[:i]] = new_assignments[assignments[lut[:i]]]
-        assignments[lut[i:(i+j)]] = new_assignments[k:,]
+        centroids, assignments[lut[:(i+j)]] = streaming_kmeans(centroids, k, assignments[lut[:(i+j)]], i)
 
-        print(i, i+j, assignments[lut[0:15]])
+        print(i, i+j, "...")
+        print("len(lut_current):", len(lut[:(i+j)]))
+        print("len(assignments):", len(assignments[lut[:(i+j)]]))
+        print("first & last ten:", assignments[lut[:(i+j)]][:10], assignments[lut[:(i+j)]][-10:])
+        print("the last five and next five:", assignments[lut[:(i+j+5)]][-10:])
+        # why is the last ten +1 in size?? 
 
         """
         print(i, i + j, 'current cells: ', current_cells.shape, 
@@ -252,7 +249,7 @@ def update_embedding(V, C, lowrankdim, centroids, points, k, svd):
     points = U[lowrankdim:,]
     points = points / np.transpose(np.tile(np.linalg.norm(points, axis=1), (lowrankdim, 1)))
 
-    #return V, C, centroids, points
+    return V, C, centroids, points
 
 
 def streaming_kmeans(points, k, assignments, i):
@@ -277,4 +274,6 @@ def streaming_kmeans(points, k, assignments, i):
     # update assignments for the previous cells
     assignments[:i] = new_assignments[assignments[:i]]
     assignments[i:] = new_assignments[k:,]
+
+    return points, assignments
 
