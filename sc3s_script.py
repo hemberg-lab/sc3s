@@ -205,3 +205,94 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
     print("... stream finished!\n")
     
     return centroids, reordered_assignments
+
+def update_embedding(V, C, lowrankdim, centroids, points, k, svd):
+    """
+    Update the spectral embedding of the low rank matrix and rotate the centroids.
+    * `V`: rotation from landmark into gene space.
+    * `C`: gene coordinates of previous memorable points and new data.
+    Function updates the first `lowrankdim` rows as the most memorable 
+    information from previous iteration (i.e. metacells), based on
+    the remaining rows (i.e. incoming stream of new cells).
+    * `centroids`: coordinates of the maintained centroids in landmark space.
+    * `points`: coordinates of the previous cells in landmark space (normalised `U`).
+    * `lowrankdim`: eigenvectors to keep in svd (i.e. how much to remember).
+    It represents the number of memorable (meta)cells to keep for next iteration.
+    * `svd`: SVD algorithm to use.
+
+    I'm considering spliting the `C` argument into two.
+    Or keep it as it is, but consider the new data as a separate argument.
+
+    Landmark: metagene.
+
+    REALLY worth having unit tests to make sure the mutation works!
+
+    This is a mutating functions, and updates these inputs:
+    * `V`: rotation from gene into updated landmark space.
+    * `C`: gene coordinates of updated memorable points, and the untouched (new) cells.
+    * `centroids`: coordinates of the maintained centroids in updated landmark space.
+    * `points`: coordinates of the new cells in updated landmark space.
+    """
+    # rotate centroids from landmark into gene space
+    centroids = np.dot(centroids, V)
+
+    # singular value decomposition
+    U, s, V = svd(C, lowrankdim)
+
+    # update coordinates of the most memorable points
+    # i.e. first `lowrankdim` rows of C
+    s2 = s**2
+    s_norm = np.sqrt(s2 - s2[-1])
+    C[:lowrankdim, :] = np.dot(np.diag(s_norm), V)
+
+    # rotate centroids from gene into updated landmark space
+    centroids = np.dot(centroids, np.transpose(V))
+    
+    # get landmark coordinates of new cells
+    # normalise the landmarks in each cell (by row), since not all singular vectors kept
+    points = U[lowrankdim:,]
+    points = points / np.transpose(np.tile(np.linalg.norm(points, axis=1), (lowrankdim, 1)))
+
+    #return V, C, centroids, points
+
+
+def streaming_kmeans(points, k, assignments, i):
+    """
+    Cluster the rows in `points` into `k` clusters, using the first `k` points
+    as initial cluster centers, which are then also updated.
+    
+    Add `assignments` for new points, and also updates those of the previous `i` points.
+
+    `points` and `assignments` must have the same depth (i.e. number of realisations).
+
+    Chance to restart is 0.05.
+    """
+    # assign new cells to centroids
+    # by random chance, we reinitialise the centroids
+    if np.random.rand() < 0.05:
+        points[k:,], new_assignments = kmeans(points, k, iter=500, thresh=1e-5, minit="random")
+        print("reinitialised centroids!")
+    else:
+        points[k:,], new_assignments = kmeans(points, points[k:,], iter=100, thresh=1e-5, minit="matrix")
+    
+    # update assignments for the previous cells
+    assignments[:i] = new_assignments[assignments[:i]]
+    assignments[i:] = new_assignments[k:,]
+
+
+
+import numpy as np
+x = np.array(np.random.rand(2,2))
+x
+def func(x):
+    x[1,] = 3
+func(x)
+x
+
+
+def my_func(a):
+    a[1] = 2.0
+
+ar = np.zeros(4)
+my_func(ar)
+print(ar)
