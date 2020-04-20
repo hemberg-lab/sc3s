@@ -127,11 +127,11 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
     #compM1 = zeros(nParallel, lowRankCells+1, maxK);
     
     # prepare empty arrays for centroid coordinates and cell assignments
-    centroids = np.empty((k, lowrankdim))
+    centroids = np.empty((k + stream, lowrankdim))
     assignments = np.empty(n_cells, dtype='int32')
     
     # cluster the first batch and obtain centroids
-    centroids, assignments[lut[i:(i+j)]] = kmeans(U, k, iter=500, thresh=1e-5)
+    centroids[:k,], assignments[lut[i:(i+j)]] = kmeans(U, k, iter=500, thresh=1e-5)
     
     print("... initial batch finished!\n")
     i += initial
@@ -147,7 +147,8 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
         # obtain range of current stream
         if (n_cells - i) < stream: # last stream may not be exact and need to be resized
             j = n_cells - i 
-            C = C[:(lowrankdim + j), :] # C[:, :(lowrankdim + j)]
+            C = C[:(lowrankdim + j), :] 
+            centroids = centroids[:(k+j)]
         else:
             j = stream
         
@@ -169,9 +170,7 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
         # normalise the current cells
         new_u = U[lowrankdim:,]
         norms = np.transpose(np.tile(np.linalg.norm(new_u, axis=1), (lowrankdim, 1)))
-        new_u = new_u / norms # normalise the landmarks in each cell (by row)
-
-        combined = np.concatenate((centroids, new_u), axis=0)
+        centroids[k:] = new_u / norms # normalise the landmarks in each cell (by row)
 
         # for consensus results
         # these is for nParallel executions of B    
@@ -180,10 +179,10 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
         # assign new cells to centroids
         # by random chance, we reinitialise the centroids
         if np.random.rand() < 0.05:
-            centroids, new_assignments = kmeans(combined, k, iter=500, thresh=1e-5, minit="random")
+            centroids[:k,], new_assignments = kmeans(centroids, k, iter=500, thresh=1e-5, minit="random")
             print("reinitialised centroids!")
         else:
-            centroids, new_assignments = kmeans(combined, centroids, iter=100, thresh=1e-5, minit="matrix")
+            centroids[:k,], new_assignments = kmeans(centroids, centroids[:k,], iter=100, thresh=1e-5, minit="matrix")
         
         # update assignments for the previous cells
         assignments[lut[:i]] = new_assignments[assignments[lut[:i]]]
@@ -270,29 +269,12 @@ def streaming_kmeans(points, k, assignments, i):
     # assign new cells to centroids
     # by random chance, we reinitialise the centroids
     if np.random.rand() < 0.05:
-        points[k:,], new_assignments = kmeans(points, k, iter=500, thresh=1e-5, minit="random")
+        points[:k,], new_assignments = kmeans(points, k, iter=500, thresh=1e-5, minit="random")
         print("reinitialised centroids!")
     else:
-        points[k:,], new_assignments = kmeans(points, points[k:,], iter=100, thresh=1e-5, minit="matrix")
+        points[:k,], new_assignments = kmeans(points, points[:k,], iter=100, thresh=1e-5, minit="matrix")
     
     # update assignments for the previous cells
     assignments[:i] = new_assignments[assignments[:i]]
     assignments[i:] = new_assignments[k:,]
 
-
-
-import numpy as np
-x = np.array(np.random.rand(2,2))
-x
-def func(x):
-    x[1,] = 3
-func(x)
-x
-
-
-def my_func(a):
-    a[1] = 2.0
-
-ar = np.zeros(4)
-my_func(ar)
-print(ar)
