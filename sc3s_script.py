@@ -103,11 +103,18 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
     # print all the parameters
     print(f"PARAMETERS:\n\nnum_cells: {n_cells}, n_genes: {n_genes}\n\ninitial: {initial}\nstream: {stream}\nnumber of landmarks: {lowrankdim}\nsvd: {svd_algorithm}\n")
         
-    # SVD of the first, initial large batch
+    # initialise parameters
     i, j = 0, initial
+    centroids = np.empty((k + stream, lowrankdim))
+    assignments = np.empty(n_cells, dtype='int32')
+    C = np.empty((lowrankdim + stream, n_genes)) # array storing embeddings and new cells
+
     print("clustering the initial batch ...")
     print(i, j)
-    U, s, Vh = svd(data.X[lut[i:(i+j)],], lowrankdim)
+    C[:lowrankdim, ], V, current_cells = initialise_embedding(data.X[lut[i:(i+j)],], lowrankdim, svd)
+    print("... initial batch finished!\n")
+
+    """U, s, Vh = svd(data.X[lut[i:(i+j)],], lowrankdim)
     print(U.shape, s.shape, Vh.shape)
     
     # initialise empty arrays for "previous batch" (B) and previous V
@@ -124,21 +131,20 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
 
     # for consensus results (to come)
     # these is for nParallele executions of B    
-    #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-    
-    # prepare empty arrays for centroid coordinates and cell assignments
-    centroids = np.empty((k + stream, lowrankdim))
-    assignments = np.empty(n_cells, dtype='int32')
+    #compM1 = zeros(nParallel, lowRankCells+1, maxK);"""
     
     # cluster the first batch and obtain centroids
-    centroids[:k,], assignments[lut[i:(i+j)]] = kmeans(U, k, iter=500, thresh=1e-5)
-    
-    print("... initial batch finished!\n")
+    # u_first is not needed afterwards
+    print(current_cells.shape)
+    print(centroids[:k].shape)
+    centroids[:k,], assignments[lut[i:(i+j)]] = kmeans(current_cells, k, iter=500, thresh=1e-5)
+
     i += initial
     
-    # initialise empty array for previous batch
+    # chop off some of C so it's the correct size
     # this is to prevent using concatenate (memory hungry) --- to benchmark
-    C = np.empty((lowrankdim + stream, n_genes)) # np.empty((n_genes, lowrankdim + stream))
+    #C = np.empty((lowrankdim + stream, n_genes))
+    #C[:lowrankdim, :] = c
     print("C: ", C.shape)
     
     # do the streaming
@@ -152,40 +158,42 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
         else:
             j = stream
         
-        # obtain current stream and concatenate to previous batch
-        current_cells = data.X[lut[i:(i+j)], ]
-        C[:lowrankdim, :] = B # landmarks from previous stream
-        C[lowrankdim:, :] = current_cells
+        # obtain current stream and concatenate to previous memory
+        C[lowrankdim:, :] = data.X[lut[i:(i+j)], ]
+
+        # update embedding and rotate centroids from previous iteration
+        C, V, centroids[:k,], current_cells = update_embedding(C, V, centroids[:k,], current_cells, lowrankdim, svd)
 
         # svd operations
-        Vh_old = Vh
-        U, s, Vh = svd(C, lowrankdim)
-        s2 = s**2
-        s_norm = np.sqrt(s2 - s2[-1])
-        B = np.dot(np.diag(s_norm), Vh) # B = np.dot(U, np.diag(s_norm))
+        # Vh_old = Vh
+        # U, s, Vh = svd(C, lowrankdim)
+        # s2 = s**2
+        # s_norm = np.sqrt(s2 - s2[-1])
+        # B = np.dot(np.diag(s_norm), Vh) # B = np.dot(U, np.diag(s_norm))
 
-        # rotate centroids into the new landmark space (using the right singular vectors)
-        centroids = np.dot(centroids, np.dot(Vh_old, np.transpose(Vh)))
+        # # rotate centroids into the new landmark space (using the right singular vectors)
+        # centroids = np.dot(centroids, np.dot(Vh_old, np.transpose(Vh)))
         
-        # normalise the current cells
-        new_u = U[lowrankdim:,]
-        norms = np.transpose(np.tile(np.linalg.norm(new_u, axis=1), (lowrankdim, 1)))
-        centroids[k:] = new_u / norms # normalise the landmarks in each cell (by row)
+        # # normalise the current cells
+        # new_u = U[lowrankdim:,]
+        # norms = np.transpose(np.tile(np.linalg.norm(new_u, axis=1), (lowrankdim, 1)))
+        # centroids[k:] = new_u / norms # normalise the landmarks in each cell (by row)
 
         # for consensus results
-        # these is for nParallel executions of B    
+        # these is for nParallel executions of B
+        # SHOULD PARALLELISTION BE PART OF STREAMING K MEANS OR THIS CORE FUNCTION?
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
+        #V, C, centroids, points = update_embedding(V, C, lowrankdim, centroids, points, k, svd)
 
         # assign new cells to centroids
         # by random chance, we reinitialise the centroids
         centroids, assignments[lut[:(i+j)]] = streaming_kmeans(centroids, k, assignments[lut[:(i+j)]], i)
 
-        print(i, i+j, "...")
-        print("len(lut_current):", len(lut[:(i+j)]))
-        print("len(assignments):", len(assignments[lut[:(i+j)]]))
-        print("first & last ten:", assignments[lut[:(i+j)]][:10], assignments[lut[:(i+j)]][-10:])
-        print("the last five and next five:", assignments[lut[:(i+j+5)]][-10:])
-        # why is the last ten +1 in size?? 
+        print(i, i+j, "...", lut[i:(i+j)])
+        # print("len(lut_current):", len(lut[:(i+j)]))
+        # print("len(assignments):", len(assignments[lut[:(i+j)]]))
+        # print("first & last ten:", assignments[lut[:(i+j)]][:10], assignments[lut[:(i+j)]][-10:])
+        # print("the last five and next five:", assignments[lut[:(i+j+5)]][-10:])
 
         """
         print(i, i + j, 'current cells: ', current_cells.shape, 
@@ -202,14 +210,41 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
     
     return centroids, reordered_assignments
 
-def update_embedding(V, C, lowrankdim, centroids, points, k, svd):
+def initialise_embedding(C, lowrankdim, svd):
+    """
+    Initialise the spectral embedding of the low rank matrix.
+    * `C`: gene coordinates of the first batch of cells.
+    * `lowrankdim`: eigenvectors to keep in svd (i.e. how much to remember).
+    It represents the number of memorable (meta)cells to keep for next iteration.
+    * `svd`: SVD algorithm to use.
+
+    Returns:
+    * `V`: rotation from gene into updated landmark space.
+    * `c`: gene coordinates of updated memorable points.
+    * `u`: coordinates of the new cells in updated landmark space (normalised `U`).
+    """
+    # singular value decomposition
+    U, s, V = svd(C, lowrankdim)
+
+    # update coordinates of the most memorable points
+    # i.e. first `lowrankdim` rows of C
+    s2 = s**2
+    s_norm = np.sqrt(s2 - s2[-1])
+    c = np.dot(np.diag(s_norm), V) # spectral embedding
+    
+    # normalise the landmarks in each cell (row-wise)
+    u = U / np.transpose(np.tile(np.linalg.norm(U, axis=1), (lowrankdim, 1)))
+
+    return c, V, u
+
+def update_embedding(C, V, centroids, points, lowrankdim, svd):
     """
     Update the spectral embedding of the low rank matrix and rotate the centroids.
-    * `V`: rotation from landmark into gene space.
     * `C`: gene coordinates of previous memorable points and new data.
     Function updates the first `lowrankdim` rows as the most memorable 
     information from previous iteration (i.e. metacells), based on
     the remaining rows (i.e. incoming stream of new cells).
+    * `V`: rotation from landmark into gene space.
     * `centroids`: coordinates of the maintained centroids in landmark space.
     * `points`: coordinates of the previous cells in landmark space (normalised `U`).
     * `lowrankdim`: eigenvectors to keep in svd (i.e. how much to remember).
@@ -224,8 +259,8 @@ def update_embedding(V, C, lowrankdim, centroids, points, k, svd):
     REALLY worth having unit tests to make sure the mutation works!
 
     This is a mutating functions, and updates these inputs:
-    * `V`: rotation from gene into updated landmark space.
     * `C`: gene coordinates of updated memorable points, and the untouched (new) cells.
+    * `V`: rotation from gene into updated landmark space.
     * `centroids`: coordinates of the maintained centroids in updated landmark space.
     * `points`: coordinates of the new cells in updated landmark space.
     """
@@ -249,7 +284,7 @@ def update_embedding(V, C, lowrankdim, centroids, points, k, svd):
     points = U[lowrankdim:,]
     points = points / np.transpose(np.tile(np.linalg.norm(points, axis=1), (lowrankdim, 1)))
 
-    return V, C, centroids, points
+    return C, V, centroids, points
 
 
 def streaming_kmeans(points, k, assignments, i):
