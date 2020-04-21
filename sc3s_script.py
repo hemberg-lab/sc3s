@@ -162,7 +162,7 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
         C[lowrankdim:, :] = data.X[lut[i:(i+j)], ]
 
         # update embedding and rotate centroids from previous iteration
-        C, V, centroids[:k,], current_cells = update_embedding(C, V, centroids[:k,], current_cells, lowrankdim, svd)
+        C, V, centroids[:k,], centroids[k:,] = update_embedding(C, V, centroids[:k,], centroids[k:,], lowrankdim, svd)
 
         # svd operations
         # Vh_old = Vh
@@ -202,6 +202,9 @@ def generate_microclusters(data, k = 100, batchmode = False, svd_algorithm = "sk
             'newly assigned: ', new_assignments[k:, ].shape)
         """
         i += j
+
+    # final microcentroids, removing the last stream
+    centroids = centroids[:k]
         
     # unrandomise the ordering
     reordered_assignments = np.empty(n_cells, dtype=int)
@@ -246,7 +249,8 @@ def update_embedding(C, V, centroids, points, lowrankdim, svd):
     the remaining rows (i.e. incoming stream of new cells).
     * `V`: rotation from landmark into gene space.
     * `centroids`: coordinates of the maintained centroids in landmark space.
-    * `points`: coordinates of the previous cells in landmark space (normalised `U`).
+    * `points`: coordinates of the previous cells in the old landmark space
+    (this is not needed for learning, it's simply to write those of the next cells).
     * `lowrankdim`: eigenvectors to keep in svd (i.e. how much to remember).
     It represents the number of memorable (meta)cells to keep for next iteration.
     * `svd`: SVD algorithm to use.
