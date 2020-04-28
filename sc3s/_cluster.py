@@ -1,4 +1,7 @@
 from ._utils import svd_scipy, svd_sklearn
+import numpy as np
+import math
+from scipy.cluster.vq import kmeans2 as kmeans
 
 def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
                   initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
@@ -174,7 +177,7 @@ def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
     
     return centroids, reordered_assignments
 
-def create_embedding(C, lowrankdim, svd):
+def _create_embedding(C, lowrankdim, svd):
     """
     Initialise the spectral embedding of the low rank matrix.
     * `C`: gene coordinates of the first batch of cells.
@@ -201,7 +204,7 @@ def create_embedding(C, lowrankdim, svd):
 
     return c, V, u
 
-def update_embedding(C, V, centroids, points, lowrankdim, svd):
+def _update_embedding(C, V, centroids, points, lowrankdim, svd):
     """
     Update the spectral embedding of the low rank matrix and rotate the centroids.
     * `C`: gene coordinates of previous memorable points and new data.
@@ -252,7 +255,7 @@ def update_embedding(C, V, centroids, points, lowrankdim, svd):
     return C, V, centroids, points
 
 
-def strm_kmeans(points, k, assignments, i):
+def _strm_kmeans(points, k, assignments, i):
     """
     Cluster the rows in `points` into `k` clusters, using the first `k` points
     as initial cluster centers, which are then also updated.

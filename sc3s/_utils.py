@@ -1,10 +1,8 @@
-import numpy as numpy
-import pandas as pd
+import numpy as np
 import math
 from scipy import linalg
 from sklearn.decomposition import TruncatedSVD
 from sklearn.cluster import KMeans as _skkmeams
-from scipy.cluster.vq import kmeans2 as kmeans
 
 def calculate_rmse(A, B):
     """

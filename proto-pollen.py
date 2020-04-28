@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-# run sc3s_script.py first
+cd /Users/fq1/code/sc3s
+
+import sc3s
+import scanpy as sc
+import pandas as pd
+import numpy as np
 
 dfexp = pd.read_table("data/pollen2-exp.txt", header=None)
 dflab1 = pd.read_table("data/pollen1-labels.txt", header=None)
@@ -27,24 +32,26 @@ sc.tl.pca(adata, n_comps=10, svd_solver='arpack')
 # SC3s method
 
 # generate microclusters
-A = generate_microclusters(adata, k=100, initial = 100, stream = 20, lowrankdim = 20)
-# A = generate_microclusters(adata, k=100, initial = 100, stream = 10, lowrankdim = 20)
-# A = generate_microclusters(adata, k=25, initial=25, stream = 20, lowrankdim = 20)
-# A = generate_microclusters(adata, k=25, initial=25, stream = 5, lowrankdim = 20) # one cluster is very unevenly sized
+microcentroids, assignments = sc3s.tl.strm_spectral(adata, k=100, initial = 100, stream = 20, lowrankdim = 20)
 
 from sklearn.cluster import KMeans
-(uniq_mclst, count_mclst) = np.unique(A[1], return_counts = True)
-weights = np.zeros(A[0].shape[0], dtype=int)
+
+(uniq_mclst, count_mclst) = np.unique(assignments, return_counts = True)
+weights = np.zeros(microcentroids.shape[0], dtype=int)
 weights[uniq_mclst] = count_mclst
 
-np.any(np.isnan(A[0]))
-np.all(np.isfinite(A[0]))
+assert not np.any(np.isnan(microcentroids)), "NaNs in microcentroids"
+assert np.all(np.isfinite(microcentroids)), "Non-finite values in microcentroids"
 
-kmeans_weight = KMeans(n_clusters=4).fit(A[0], sample_weight=weights+1) # bug if any weight = 0
+kmeans_weight = KMeans(n_clusters=4).fit(A[0], sample_weight=weights+1) # bug without pseudoweight
 macroclusters = kmeans_weight.labels_
 macrocentroids = kmeans_weight.cluster_centers_
 adata.obs = adata.obs.assign(sc3_k4 = pd.Categorical(macroclusters[A[1]]))
+
+
+
 sc.pl.pca(adata, color='sc3_k4', size=35)
+
 
 # now consolidate microclusters into clusters
 # I'm using the scikit version here, because it supports weighted k means
