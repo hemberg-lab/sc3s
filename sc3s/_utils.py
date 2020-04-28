@@ -61,3 +61,27 @@ def weighted_kmeans(centroids, assignments):
     macrocentroids = kmeans_weight.cluster_centers_
 
     return macroclusters[assignments]
+
+def convert_clustering_to_binary(clustering, K):
+    """
+    Converts clustering results into binary matrix for K-means.
+    
+    Input: 
+    * `clusterings`: `m * n` array of cluster assignments for `m` observations in `n` runs.
+    * `k`: number of clusters
+
+    Needs to be unit tested carefully. Doesn't throw error even if input is wrong orientation.
+    Might need to incorporate checking for unique entries.
+    """
+    clusterings = np.transpose(clustering) # this should not exist
+    n_parallel, n_cells = np.shape(clusterings)
+
+    x = np.repeat(np.arange(0, n_cells), n_parallel)
+    y = np.tile(np.arange(0, n_parallel), n_cells)
+    z = clusterings.reshape(np.size(clusterings), order='F')
+
+    B = np.zeros((n_cells, n_parallel, K), dtype=int)
+    B[x,y,z] = 1
+    B = B.reshape((n_cells, n_parallel*K))
+
+    return B

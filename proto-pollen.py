@@ -56,27 +56,15 @@ sc.pl.pca(adata, color='sc3_k4_single', size=35)
 n_parallel = 5
 K = 4
 n_cells = 301
-clusterings = np.empty((n_parallel, 301), dtype=int)
+clusterings = np.empty((n_cells, n_parallel), dtype=int)
 
 from sklearn.cluster import KMeans
 for i in range(0, n_parallel):
     microcentroids, assignments = sc3s.tl.strm_spectral(adata, k=100, initial = 100, stream = 20, lowrankdim = 20)
-    clusterings[i,:] = sc3s.tl.weighted_kmeans(microcentroids, assignments)
-
-##################################################
-
-# binary matrix
-B = np.zeros((n_cells, n_parallel, K), dtype=int)
-
-x = np.repeat(np.arange(0, n_cells), n_parallel)
-y = np.tile(np.arange(0, n_parallel), n_cells)
-z = clusterings.reshape(np.size(clusterings), order='F')
-B[x,y,z] = 1
-B = B.reshape((n_cells, n_parallel*K))
-
-##################################################
+    clusterings[:, i] = sc3s.tl.weighted_kmeans(microcentroids, assignments)
 
 # consensus clustering of the cells
+B = sc3s.tl.convert_clustering_to_binary(clusterings, K)
 kmeans_macro = KMeans(n_clusters=K).fit(B)
 kmeans_macro.labels_
 adata.obs = adata.obs.assign(sc3_k4 = pd.Categorical(kmeans_macro.labels_))

@@ -1,6 +1,4 @@
 from ._cluster import strm_spectral
-# from ._cluster import create_embedding, update_embedding # to become private
-from ._utils import calculate_rmse, weighted_kmeans
-
+from ._utils import calculate_rmse, weighted_kmeans, convert_clustering_to_binary
 def consensus_clustering(x):
     pass
