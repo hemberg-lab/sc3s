@@ -3,6 +3,7 @@
 cd /Users/fq1/code/sc3s
 
 import sc3s
+
 import scanpy as sc
 import pandas as pd
 import numpy as np
@@ -29,59 +30,22 @@ sc.tl.pca(adata, n_comps=10, svd_solver='arpack')
 
 ##################################################
 
-# SC3s method
-
+# SC3s 
 # generate microclusters
 microcentroids, assignments = sc3s.tl.strm_spectral(adata, k=100, initial = 100, stream = 20, lowrankdim = 20)
 
-from sklearn.cluster import KMeans
-
-(uniq_mclst, count_mclst) = np.unique(assignments, return_counts = True)
-weights = np.zeros(microcentroids.shape[0], dtype=int)
-weights[uniq_mclst] = count_mclst
-
-assert not np.any(np.isnan(microcentroids)), "NaNs in microcentroids"
-assert np.all(np.isfinite(microcentroids)), "Non-finite values in microcentroids"
-
-kmeans_weight = KMeans(n_clusters=4).fit(A[0], sample_weight=weights+1) # bug without pseudoweight
-macroclusters = kmeans_weight.labels_
-macrocentroids = kmeans_weight.cluster_centers_
-adata.obs = adata.obs.assign(sc3_k4 = pd.Categorical(macroclusters[A[1]]))
-
-
-
-sc.pl.pca(adata, color='sc3_k4', size=35)
-
-
 # now consolidate microclusters into clusters
-# I'm using the scikit version here, because it supports weighted k means
-
-for _ in range(0,3):
-    A = generate_microclusters(adata, k=200, initial = 100, stream = 10, lowrankdim = 20)
-    
-    (uniq_mclst, count_mclst) = np.unique(A[1], return_counts = True)
-    weights = np.zeros(A[0].shape[0], dtype=int)
-    weights[uniq_mclst] = count_mclst
-
-    kmeans_weight = KMeans(n_clusters=4).fit(A[0], sample_weight=weights)
-    macroclusters = kmeans_weight.labels_
-    macrocentroids = kmeans_weight.cluster_centers_
-    adata.obs = adata.obs.assign(sc3_k4 = pd.Categorical(macroclusters[A[1]]))
-    sc.pl.pca(adata, color='sc3_k4', size=35)
+cell_assignments = sc3s.tl.weighted_kmeans(microcentroids, assignments)
+adata.obs = adata.obs.assign(sc3_k4_single = pd.Categorical(cell_assignments))
 
 # UMAP plots
-sc.pl.umap(adata, color='leiden', size=35)
-sc.pl.umap(adata, color='label1', size=35)
-sc.pl.umap(adata, color='sc3_k11', size=35)
 sc.pl.umap(adata, color='label2', size=35)
-sc.pl.umap(adata, color='sc3_k4', size=35)
+sc.pl.umap(adata, color='sc3_k4_single', size=35)
 
 # PCA plots
 sc.pl.pca_variance_ratio(adata, log=True)
-sc.pl.pca(adata, color='label1', size=35)
-sc.pl.pca(adata, color='sc3_k11', size=35)
 sc.pl.pca(adata, color='label2', size=35)
-sc.pl.pca(adata, color='sc3_k4', size=35)
+sc.pl.pca(adata, color='sc3_k4_single', size=35)
 
 ##################################################
 
@@ -96,20 +60,10 @@ clusterings = np.empty((n_parallel, 301), dtype=int)
 
 from sklearn.cluster import KMeans
 for i in range(0, n_parallel):
-    # the inner part of this loop could be a function called "cluster_microcentroids()"
-    A = generate_microclusters(adata, k=200, initial=100, stream=10, lowrankdim=20)
-    cell_assignments = A[1] # subject to change
+    microcentroids, assignments = sc3s.tl.strm_spectral(adata, k=100, initial = 100, stream = 20, lowrankdim = 20)
+    clusterings[i,:] = sc3s.tl.weighted_kmeans(microcentroids, assignments)
 
-    # count the number of cells in each microcluster assignment
-    (uniq_mclst, count_mclst) = np.unique(A[1], return_counts = True)
-    weights = np.zeros(A[0].shape[0], dtype=int)
-    weights[uniq_mclst] = count_mclst
-
-    kmeans_weight = KMeans(n_clusters=K).fit(A[0], sample_weight=weights+1) # bug without pseudoweight
-    macroclusters = kmeans_weight.labels_
-    macrocentroids = kmeans_weight.cluster_centers_
-
-    clusterings[i,:] = macroclusters[cell_assignments]
+##################################################
 
 # binary matrix
 B = np.zeros((n_cells, n_parallel, K), dtype=int)
@@ -120,11 +74,13 @@ z = clusterings.reshape(np.size(clusterings), order='F')
 B[x,y,z] = 1
 B = B.reshape((n_cells, n_parallel*K))
 
+##################################################
+
 # consensus clustering of the cells
 kmeans_macro = KMeans(n_clusters=K).fit(B)
 kmeans_macro.labels_
-
 adata.obs = adata.obs.assign(sc3_k4 = pd.Categorical(kmeans_macro.labels_))
+
 sc.pl.pca(adata, color='sc3_k4', size=35)
 sc.pl.pca(adata, color='label2', size=35)
 

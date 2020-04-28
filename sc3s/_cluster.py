@@ -73,46 +73,18 @@ def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
     assignments = np.empty(n_cells, dtype='int32')
     C = np.empty((lowrankdim + stream, n_genes)) # array storing embeddings and new cells
 
-    print("clustering the initial batch ...")
-    print(i, j)
+    print(f"clustering the initial batch, observations {i} to {j}...")
     C[:lowrankdim, ], V, current_cells = _create_embedding(data.X[lut[i:(i+j)],], lowrankdim, svd)
     print("... initial batch finished!\n")
 
-    """U, s, Vh = svd(data.X[lut[i:(i+j)],], lowrankdim)
-    print(U.shape, s.shape, Vh.shape)
-    
-    # initialise empty arrays for "previous batch" (B) and previous V
-    # row: genes, cell: low rank dim
-    # (don't think this is needed, this is not Julia)
-    
-    # normalise the sigma singular values (step 7 of strmEMB)
-    s2 = s**2
-    s_norm = np.sqrt(s2 - s2[-1])
-    
-    # scale the columns in U with normalised singular values
-    B = np.dot(np.diag(s_norm), Vh) # np.dot(U, np.diag(s_norm)) #change
-    print("B: ", B.shape)
-
-    # for consensus results (to come)
-    # these is for nParallele executions of B    
-    #compM1 = zeros(nParallel, lowRankCells+1, maxK);"""
-    
     # cluster the first batch and obtain centroids
     # u_first is not needed afterwards
-    print(current_cells.shape)
-    print(centroids[:k].shape)
     centroids[:k,], assignments[lut[i:(i+j)]] = kmeans(current_cells, k, iter=500, thresh=1e-5)
 
     i += initial
     
-    # chop off some of C so it's the correct size
-    # this is to prevent using concatenate (memory hungry) --- to benchmark
-    #C = np.empty((lowrankdim + stream, n_genes))
-    #C[:lowrankdim, :] = c
-    print("C: ", C.shape)
-    
     # do the streaming
-    print("streaming the remaining cells ...")
+    print("now streaming the remaining cells ...\n")
     while i < n_cells:
         # obtain range of current stream
         if (n_cells - i) < stream: # last stream may not be exact and need to be resized
@@ -128,43 +100,14 @@ def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
         # update embedding and rotate centroids from previous iteration
         C, V, centroids[:k,], centroids[k:,] = _update_embedding(C, V, centroids[:k,], centroids[k:,], lowrankdim, svd)
 
-        # svd operations
-        # Vh_old = Vh
-        # U, s, Vh = svd(C, lowrankdim)
-        # s2 = s**2
-        # s_norm = np.sqrt(s2 - s2[-1])
-        # B = np.dot(np.diag(s_norm), Vh) # B = np.dot(U, np.diag(s_norm))
-
-        # # rotate centroids into the new landmark space (using the right singular vectors)
-        # centroids = np.dot(centroids, np.dot(Vh_old, np.transpose(Vh)))
-        
-        # # normalise the current cells
-        # new_u = U[lowrankdim:,]
-        # norms = np.transpose(np.tile(np.linalg.norm(new_u, axis=1), (lowrankdim, 1)))
-        # centroids[k:] = new_u / norms # normalise the landmarks in each cell (by row)
-
         # for consensus results
         # these is for nParallel executions of B
-        # SHOULD PARALLELISTION BE PART OF STREAMING K MEANS OR THIS CORE FUNCTION?
         #compM1 = zeros(nParallel, lowRankCells+1, maxK);
-        #V, C, centroids, points = update_embedding(V, C, lowrankdim, centroids, points, k, svd)
 
-        # assign new cells to centroids
-        # by random chance, we reinitialise the centroids
+        # assign new cells to centroids, centroids are reinitialised by random chance
         centroids, assignments[lut[:(i+j)]] = _strm_kmeans(centroids, k, assignments[lut[:(i+j)]], i)
 
-        print(i, i+j, "...", lut[i:(i+j)])
-        # print("len(lut_current):", len(lut[:(i+j)]))
-        # print("len(assignments):", len(assignments[lut[:(i+j)]]))
-        # print("first & last ten:", assignments[lut[:(i+j)]][:10], assignments[lut[:(i+j)]][-10:])
-        # print("the last five and next five:", assignments[lut[:(i+j+5)]][-10:])
-
-        """
-        print(i, i + j, 'current cells: ', current_cells.shape, 
-            'U: ', U[lowrankdim:,].shape, 
-            'centroids: ', centroids.shape, 
-            'newly assigned: ', new_assignments[k:, ].shape)
-        """
+        print(f"working on observations {i} to {i+j}...")
         i += j
 
     # final microcentroids, removing the last stream
@@ -173,7 +116,7 @@ def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
     # unrandomise the ordering
     reordered_assignments = np.empty(n_cells, dtype=int)
     reordered_assignments[lut]= assignments[lut]
-    print("... stream finished!\n")
+    print("\nspectral clustering finished!")
     
     return centroids, reordered_assignments
 
@@ -270,7 +213,7 @@ def _strm_kmeans(points, k, assignments, i):
     # by random chance, we reinitialise the centroids
     if np.random.rand() < 0.05:
         points[:k,], new_assignments = kmeans(points, k, iter=500, thresh=1e-5, minit="random")
-        print("reinitialised centroids!")
+        print("reinitialised centroids!\n")
     else:
         points[:k,], new_assignments = kmeans(points, points[:k,], iter=100, thresh=1e-5, minit="matrix")
     

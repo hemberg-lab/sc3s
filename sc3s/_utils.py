@@ -2,7 +2,7 @@ import numpy as np
 import math
 from scipy import linalg
 from sklearn.decomposition import TruncatedSVD
-from sklearn.cluster import KMeans as _skkmeams
+from sklearn.cluster import KMeans
 
 def calculate_rmse(A, B):
     """
@@ -42,3 +42,22 @@ def svd_sklearn(X, n_components, n_iter=5, random_state=None):
     Vh = svd.components_
     U = U / np.tile(s, (U.shape[0],1)) # by default, U is scaled by s
     return U, s, Vh
+
+def weighted_kmeans(centroids, assignments):
+    """
+    Weighted k means.
+    """
+    (uniq_mclst, count_mclst) = np.unique(assignments, return_counts = True)
+
+    # count the number of cells in each microcluster assignment
+    weights = np.zeros(centroids.shape[0], dtype=int)
+    weights[uniq_mclst] = count_mclst
+
+    assert not np.any(np.isnan(centroids)), "NaNs in centroids"
+    assert np.all(np.isfinite(centroids)), "Non-finite values in centroids"
+
+    kmeans_weight = KMeans(n_clusters=4).fit(centroids, sample_weight=weights+1) # pseudoweight
+    macroclusters = kmeans_weight.labels_
+    macrocentroids = kmeans_weight.cluster_centers_
+
+    return macroclusters[assignments]
