@@ -56,12 +56,18 @@ sc.pl.pca(adata, color='sc3_k4_single', size=35)
 n_parallel = 5
 K = 4
 n_cells = 301
-clusterings = np.empty((n_cells, n_parallel), dtype=int)
+lowrankrange = range(10,20)
+clusterings = np.empty((n_cells, len(lowrankrange), n_parallel), dtype=int)
 
+np.random.seed(322)
 from sklearn.cluster import KMeans
-for i in range(0, n_parallel):
-    microcentroids, assignments = sc3s.tl.strm_spectral(adata, k=100, initial = 100, stream = 20, lowrankdim = 20)
-    clusterings[:, i] = sc3s.tl.weighted_kmeans(microcentroids, assignments)
+for i in range(0, len(lowrankrange)):
+    for j in range(0, n_parallel):
+        microcentroids, assignments = sc3s.tl.strm_spectral(adata, k=100, initial = 100, 
+                stream = 20, lowrankdim = lowrankrange[i])
+        clusterings[:, i, j] = sc3s.tl.weighted_kmeans(microcentroids, assignments)
+
+clusterings = clusterings.reshape((n_cells, len(lowrankrange)*n_parallel))
 
 # consensus clustering of the cells
 B = sc3s.tl.convert_clustering_to_binary(clusterings, K)
@@ -73,4 +79,16 @@ sc.pl.pca(adata, color='sc3_k4', size=35)
 sc.pl.pca(adata, color='label2', size=35)
 
 ##################################################
+
+import matplotlib.pyplot as plt
+with plt.style.context('fivethirtyeight'):
+    plt.matshow(-B.T)
+    plt.axis('off')
+    plt.savefig("binary.png", format="png", transparent=True)
+
+# single run
+with plt.style.context('fivethirtyeight'):
+    plt.matshow(-B[:,0:4].T)
+    plt.axis('off')
+    plt.savefig("binary_onerun.png", format="png", transparent=True)
 
