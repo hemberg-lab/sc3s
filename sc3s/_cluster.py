@@ -3,8 +3,8 @@ import numpy as np
 import math
 from scipy.cluster.vq import kmeans2 as kmeans
 
-def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
-                  initial = 0.2, stream = 0.02, lowrankdim = 0.05, iterations = 5,
+def strm_spectral(data, k = 100, streammode = True, svd_algorithm = "sklearn",
+                  initial = 0.2, stream = 0.02, lowrankdim = 0.05, n_parallel = 5,
                   initialmin = 10**3, streammin = 10,
                   initialmax = 10**5, streammax = 100, randomcellorder = True):
     """
@@ -27,7 +27,7 @@ def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
         
     # obtain and calculate useful values
     # there's quite some edge cases that I need to think about for this part
-    n_cells, n_genes = data.X.shape
+    n_cells, n_genes = data.shape
 
     # look up table for the ordering of cells in the stream
     lut = np.arange(n_cells) 
@@ -74,7 +74,7 @@ def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
     C = np.empty((lowrankdim + stream, n_genes)) # array storing embeddings and new cells
 
     print(f"clustering the initial batch, observations {i} to {j}...")
-    C[:lowrankdim, ], V, current_cells = _create_embedding(data.X[lut[i:(i+j)],], lowrankdim, svd)
+    C[:lowrankdim, ], V, current_cells = _create_embedding(data[lut[i:(i+j)],], lowrankdim, svd)
     print("... initial batch finished!\n")
 
     # cluster the first batch and obtain centroids
@@ -95,7 +95,7 @@ def strm_spectral(data, k = 100, batchmode = False, svd_algorithm = "sklearn",
             j = stream
         
         # obtain current stream and concatenate to previous memory
-        C[lowrankdim:, :] = data.X[lut[i:(i+j)], ]
+        C[lowrankdim:, :] = data[lut[i:(i+j)], ]
 
         # update embedding and rotate centroids from previous iteration
         C, V, centroids[:k,], centroids[k:,] = _update_embedding(C, V, centroids[:k,], centroids[k:,], lowrankdim, svd)
