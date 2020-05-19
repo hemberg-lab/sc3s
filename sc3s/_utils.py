@@ -43,7 +43,7 @@ def svd_sklearn(X, n_components, n_iter=5, random_state=None):
     U = U / np.tile(s, (U.shape[0],1)) # by default, U is scaled by s
     return U, s, Vh
 
-def weighted_kmeans(centroids, assignments):
+def weighted_kmeans(centroids, assignments, num_clust):
     """
     Weighted k means.
     """
@@ -56,7 +56,7 @@ def weighted_kmeans(centroids, assignments):
     assert not np.any(np.isnan(centroids)), "NaNs in centroids"
     assert np.all(np.isfinite(centroids)), "Non-finite values in centroids"
 
-    kmeans_weight = KMeans(n_clusters=4).fit(centroids, sample_weight=weights+1) # pseudoweight
+    kmeans_weight = KMeans(n_clusters=num_clust).fit(centroids, sample_weight=weights+1) # pseudoweight
     macroclusters = kmeans_weight.labels_
     macrocentroids = kmeans_weight.cluster_centers_
 
