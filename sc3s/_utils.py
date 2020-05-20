@@ -43,6 +43,7 @@ def svd_sklearn(X, n_components, n_iter=5, random_state=None):
     U = U / np.tile(s, (U.shape[0],1)) # by default, U is scaled by s
     return U, s, Vh
 
+
 def weighted_kmeans(centroids, assignments, num_clust):
     """
     Weighted k means.
@@ -62,28 +63,11 @@ def weighted_kmeans(centroids, assignments, num_clust):
 
     return macroclusters[assignments]
 
-def _convert_clustering_to_binary_deprecated(clustering, K):
-    """
-    OLD VERSION. TO BE DEPRECATED.
-    """
-    clusterings = np.transpose(clustering) # this should not exist
-    n_parallel, n_cells = np.shape(clusterings)
-
-    x = np.repeat(np.arange(0, n_cells), n_parallel)
-    y = np.tile(np.arange(0, n_parallel), n_cells)
-    z = clusterings.reshape(np.size(clusterings), order='F')
-
-    B = np.zeros((n_cells, n_parallel, K), dtype=int)
-    B[x,y,z] = 1
-    B = B.reshape((n_cells, n_parallel*K))
-
-    return B
 
 def convert_clusterings_to_binary(clusterings, datatype='float32'):
     """
     Converts clustering results into binary matrix for K-means.
-    Requires that the number of data points are equal across clusterings, and 
-    that each point only has one assignment.
+    Requires that the number of data points are equal across clusterings.
     
     Input: 
     * `clusterings`: a dictionary

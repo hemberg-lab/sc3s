@@ -14,12 +14,9 @@ def consensus_clustering(
     initialmax = 10**5, streammax = 100,
     randomcellorder = True):
 
-    n_cells, n_genes = adata.X.shape
-
     # empty dictionary to hold clustering results
     clusterings = {}
 
-    #np.random.seed(322)
     # this last step can become a generator to be more clear
     for i in range(0, len(lowrankrange)):
         runs = strm_spectral(adata.X, num_clust, k=100, n_parallel=n_parallel,

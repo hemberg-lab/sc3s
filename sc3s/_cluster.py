@@ -60,9 +60,6 @@ def strm_spectral(data, num_clust,
         svd = svd_scipy
 
     print(f"PARAMETERS:\n\nnum_cells: {n_cells}, n_genes: {n_genes}\n\ninitial: {initial}\nstream: {stream}\nnumber of landmarks: {lowrankdim}\nsvd: {svd_algorithm}\n")
-    
-    # centroids = np.empty((k + stream, lowrankdim))
-    # assignments = np.empty(n_cells, dtype='int32')
 
     # look up table for the ordering of cells in the stream
     lut = np.arange(n_cells) 
@@ -79,7 +76,6 @@ def strm_spectral(data, num_clust,
     print("... initial batch finished!\n")
 
     # cluster the first batch and obtain centroids
-    #centroids[:k,], assignments[lut[i:(i+j)]] = kmeans(current_cells, k, iter=500, thresh=1e-5)
     runs = {t: _cluster_initial_cells(run, current_cells, k, lut, i+j) for t, run in runs.items()}
 
     # do the rest of the stream
@@ -91,12 +87,10 @@ def strm_spectral(data, num_clust,
         if (n_cells - i) < stream: # last stream may not be exact and need to be resized (wrap into a function)
             j = n_cells - i 
             C = C[:(lowrankdim + j), :] 
-            #centroids = centroids[:(k+j)]
 
             def resize_centroids(run, k, j):
                 run['cent'] = run['cent'][:(k+j)]
                 return run
-            
             runs = {t: resize_centroids(run, k, j) for t, run in runs.items()}
         else:
             j = stream
@@ -110,31 +104,21 @@ def strm_spectral(data, num_clust,
         # rotate centroids
         assert np.all(Vold != V), "rotation matrices are the same!"
         runs = {t: _rotate_centroids(run, V, Vold) for t, run in runs.items()}
-        
-        #C, V, centroids[:k,], centroids[k:,] = _update_embedding(C, V, centroids[:k,], centroids[k:,], lowrankdim, svd)
-        #current_cells = centroids[k:,]
 
         # assign new cells to centroids, centroids are reinitialised by random chance
-        #centroids, assignments[lut[:(i+j)]] = _strm_kmeans(centroids, k, assignments[lut[:(i+j)]], i)
         runs = {t: _cluster_subsequent_cells(run, current_cells, k, lut, i, j) for t, run in runs.items()}
 
         print(f"working on observations {i} to {i+j}...")
         i += j
         Vold = V
-
-    # final microcentroids, removing the last stream
-    # centroids = centroids[:k]
-        
+       
     # unrandomise the ordering
     runs = {t: _reorder_cells(run, lut) for t, run in runs.items()}
-    #reordered_assignments = np.empty(n_cells, dtype=int)
-    #reordered_assignments[lut]= assignments[lut]
 
     # consolidate microclusters into macroclusters, add the lowrankdim in the key
     runs = {(lowrankdim, t): weighted_kmeans(run['cent'], run['asgn'], num_clust) for t, run in runs.items()}
-    #clusterings[:, i, j] = weighted_kmeans(microcentroids, assignments)
+    print("\nspectral clustering finished!\n")
 
-    print("\nspectral clustering finished!")
     return runs
 
 def _create_embedding(cells_first, lowrankdim, svd):
@@ -216,6 +200,7 @@ def _rotate_centroids(run, V, Vold):
     run['cent'] = np.dot(np.dot(run['cent'], Vold), np.transpose(V))
     return run
 
+
 def _strm_kmeans(centroids, current_cells, k, assignments, i, restartchance = 0.05):
     """
     Cluster the rows in `points` into `k` clusters, using the first `k` points
@@ -254,12 +239,14 @@ def _cluster_subsequent_cells(run, current_cells, k, lut, i, j):
         current_cells, k, assignments = run['asgn'][lut[:(i+j)]], i = i)
     return run
 
+
 def _cluster_initial_cells(run, current_cells, k, lut, index):
     """
     Clusters the first cells in parallel. `run` is a dictionary holding the result of an individual run.
     """
     run['cent'], run['asgn'][lut[:index]] = kmeans(current_cells, k, iter=500, thresh=1e-5)
     return run
+
 
 def _reorder_cells(run, lut):
     """
