@@ -1,5 +1,5 @@
 from ._cluster import strm_spectral
-from ._utils import calculate_rmse, weighted_kmeans, convert_clustering_to_binary
+from ._utils import calculate_rmse, weighted_kmeans, convert_clusterings_to_binary
 
 from sklearn.cluster import KMeans
 import numpy as np
@@ -21,6 +21,7 @@ def consensus_clustering(
     clusterings = {}
 
     #np.random.seed(322)
+    # this last step can become a generator to be more clear
     for i in range(0, len(lowrankrange)):
         runs = strm_spectral(adata.X, num_clust, k=100, 
             streammode=True, svd_algorithm=svd_algorithm, 
@@ -29,11 +30,9 @@ def consensus_clustering(
 
         #clusterings[:, i, j] = weighted_kmeans(microcentroids, assignments)
 
-    
-    """
     # convert to binary matrix
-    clusterings = clusterings.reshape((n_cells, len(lowrankrange)*n_parallel))
-    consensus_matrix = convert_clustering_to_binary(clusterings, num_clust)
+    #clusterings = clusterings.reshape((n_cells, len(lowrankrange)*n_parallel))
+    consensus_matrix = convert_clusterings_to_binary(clusterings)
 
     # consolidate microclusters
     kmeans_macro = KMeans(n_clusters=num_clust).fit(consensus_matrix)
@@ -42,7 +41,3 @@ def consensus_clustering(
     adata.obs = adata.obs.drop("sc3s", axis=1, errors='ignore')
     adata.obs.insert(len(adata.obs.columns), "sc3s", 
         pd.Categorical(kmeans_macro.labels_), allow_duplicates=True)
-    """
-
-    return clusterings #adata
-

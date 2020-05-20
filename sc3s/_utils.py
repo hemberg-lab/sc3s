@@ -56,22 +56,15 @@ def weighted_kmeans(centroids, assignments, num_clust):
     assert not np.any(np.isnan(centroids)), "NaNs in centroids"
     assert np.all(np.isfinite(centroids)), "Non-finite values in centroids"
 
-    kmeans_weight = KMeans(n_clusters=num_clust).fit(centroids, sample_weight=weights+1) # pseudoweight
+    kmeans_weight = KMeans(n_clusters=num_clust, max_iter=1000).fit(centroids, sample_weight=weights+1) # pseudoweight
     macroclusters = kmeans_weight.labels_
     macrocentroids = kmeans_weight.cluster_centers_
 
     return macroclusters[assignments]
 
-def convert_clustering_to_binary(clustering, K):
+def _convert_clustering_to_binary_deprecated(clustering, K):
     """
-    Converts clustering results into binary matrix for K-means.
-    
-    Input: 
-    * `clusterings`: `m * n` array of cluster assignments for `m` observations in `n` runs.
-    * `k`: number of clusters
-
-    Needs to be unit tested carefully. Doesn't throw error even if input is wrong orientation.
-    Might need to incorporate checking for unique entries.
+    OLD VERSION. TO BE DEPRECATED.
     """
     clusterings = np.transpose(clustering) # this should not exist
     n_parallel, n_cells = np.shape(clusterings)
@@ -83,5 +76,37 @@ def convert_clustering_to_binary(clustering, K):
     B = np.zeros((n_cells, n_parallel, K), dtype=int)
     B[x,y,z] = 1
     B = B.reshape((n_cells, n_parallel*K))
+
+    return B
+
+def convert_clusterings_to_binary(clusterings):
+    """
+    Converts clustering results into binary matrix for K-means.
+    Requires that the number of data points are equal across clusterings, and 
+    that each point only has one assignment.
+    
+    Input: 
+    * `clusterings`: a dictionary
+
+    This updated version works even if the number of unique clusters are not the same.
+    """
+    def return_data_length_if_equal(clusterings):
+        data_lengths = [len(x) for x in clusterings.values()]
+        assert data_lengths.count(data_lengths[0]) == len(data_lengths), "data vectors different lengths"
+        return data_lengths[0]
+
+    # initialise binary matrix, after running some checks
+    n_cells = return_data_length_if_equal(clusterings)
+    B = np.zeros((n_cells, 0), dtype='int32')
+    results = list(clusterings.values())
+
+    # fill in the binary matrix
+    for i in range(0, len(results)):
+        b = np.zeros((n_cells, len(np.unique(results[i]))), dtype='int32')
+        #print(np.unique(results[i]))
+        #print(len(np.unique(results[i])))
+        b[range(0, n_cells), results[i]] = 1
+        assert np.all(np.sum(b, axis=1) == 1), "some data points have multiple cluster assignments"
+        B = np.append(B, b, axis=1)
 
     return B
