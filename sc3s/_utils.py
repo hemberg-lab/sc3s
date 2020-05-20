@@ -79,7 +79,7 @@ def _convert_clustering_to_binary_deprecated(clustering, K):
 
     return B
 
-def convert_clusterings_to_binary(clusterings, datatype='int32'):
+def convert_clusterings_to_binary(clusterings, datatype='float32'):
     """
     Converts clustering results into binary matrix for K-means.
     Requires that the number of data points are equal across clusterings, and 
@@ -95,14 +95,13 @@ def convert_clusterings_to_binary(clusterings, datatype='int32'):
         assert data_lengths.count(data_lengths[0]) == len(data_lengths), "data vectors different lengths"
         return data_lengths[0]
 
-    def return_no_unique_if_equal(clusterings):
-        unique_elements = [len(np.unique(x)) for x in clusterings.values()]
-        assert unique_elements.count(unique_elements[0]) == len(unique_elements), "the number of unique elements not the same"
-        return unique_elements[0]
+    def return_max_clustid(clusterings):
+        maximum_values = [np.max(x) for x in clusterings.values()]
+        return np.max(maximum_values) + 1
 
     # initialise binary matrix, after running some checks
     n_cells = return_data_length_if_equal(clusterings)
-    n_clust = return_no_unique_if_equal(clusterings)
+    n_clust = return_max_clustid(clusterings)
     B = np.zeros((n_cells, 0), dtype=datatype)
     results = list(clusterings.values())
 
@@ -112,5 +111,13 @@ def convert_clusterings_to_binary(clusterings, datatype='int32'):
         b[range(0, n_cells), results[i]] = 1
         assert np.all(np.sum(b, axis=1) == 1), "some data points have multiple cluster assignments"
         B = np.append(B, b, axis=1)
+
+    assert B.shape[1] == (len(results) * n_clust), "binary matrix has wrong number of columns"
+
+    # remove clusters with no cells assigned
+    # this can happen if some initialised centroids do not get assigned anything
+    print("original binary matrix:", B.shape)
+    B = B[:,np.sum(B, axis=0)!=0]
+    print("removed clusters with no assignments, now:", B.shape, "\n")
 
     return B

@@ -17,25 +17,21 @@ def consensus_clustering(
     n_cells, n_genes = adata.X.shape
 
     # empty dictionary to hold clustering results
-    #clusterings = np.empty((n_cells, len(lowrankrange), n_parallel), dtype=int)
     clusterings = {}
 
     #np.random.seed(322)
     # this last step can become a generator to be more clear
     for i in range(0, len(lowrankrange)):
-        runs = strm_spectral(adata.X, num_clust, k=100, 
+        runs = strm_spectral(adata.X, num_clust, k=100, n_parallel=n_parallel,
             streammode=True, svd_algorithm=svd_algorithm, 
             initial = 100, stream = 20, lowrankdim = lowrankrange[i])
         clusterings.update(runs)
 
-        #clusterings[:, i, j] = weighted_kmeans(microcentroids, assignments)
-
     # convert to binary matrix
-    #clusterings = clusterings.reshape((n_cells, len(lowrankrange)*n_parallel))
     consensus_matrix = convert_clusterings_to_binary(clusterings)
 
     # consolidate microclusters
-    kmeans_macro = KMeans(n_clusters=num_clust).fit(consensus_matrix)
+    kmeans_macro = KMeans(n_clusters=num_clust, max_iter=5000).fit(consensus_matrix)
 
     # write clustering results to adata.obs, replacing previous results if they exist
     adata.obs = adata.obs.drop("sc3s", axis=1, errors='ignore')
