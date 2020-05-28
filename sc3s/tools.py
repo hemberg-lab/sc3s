@@ -8,7 +8,7 @@ import pandas as pd
 def consensus_clustering(
     adata, num_clust = 4, 
     streaming = True, svd_algorithm = "sklearn",
-    initial = 0.2, stream = 0.02,
+    initial = 100, stream = 50,
     lowrankrange = range(10,20), n_parallel = 5,
     initialmin = 10**3, streammin = 10,
     initialmax = 10**5, streammax = 100,
@@ -21,7 +21,7 @@ def consensus_clustering(
     for i in range(0, len(lowrankrange)):
         runs = strm_spectral(adata.X, num_clust, k=100, n_parallel=n_parallel,
             streammode=True, svd_algorithm=svd_algorithm, 
-            initial = 100, stream = 20, lowrankdim = lowrankrange[i])
+            initial=initial, stream=stream, lowrankdim = lowrankrange[i])
         clusterings.update(runs)
 
     # convert to binary matrix
