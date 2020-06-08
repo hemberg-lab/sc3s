@@ -113,10 +113,10 @@ def strm_spectral(data, num_clust,
         Vold = V
        
     # unrandomise the ordering
-    runs = {t: _reorder_cells(run, lut) for t, run in runs.items()}
+    runs = {(lowrankdim, t): _reorder_cells(run, lut) for t, run in runs.items()}
 
     # consolidate microclusters into macroclusters, add the lowrankdim in the key
-    runs = {(lowrankdim, t): weighted_kmeans(run['cent'], run['asgn'], num_clust) for t, run in runs.items()}
+    #runs = {(lowrankdim, t): weighted_kmeans(run['cent'], run['asgn'], num_clust) for t, run in runs.items()}
     print("\nspectral clustering finished!\n")
 
     return runs
