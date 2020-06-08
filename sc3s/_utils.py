@@ -105,3 +105,11 @@ def convert_clusterings_to_binary(clusterings, datatype='float32'):
     print("removed clusters with no assignments, now:", B.shape, "\n")
 
     return B
+
+def _check_iterable(obj):
+    try:
+        iter(obj)
+    except Exception:
+        return False
+    else:
+        return True
