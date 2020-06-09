@@ -38,6 +38,6 @@ def consensus_clustering(
         kmeans_macro = KMeans(n_clusters=K, max_iter=5000).fit(consensus_matrix)
 
         # write clustering results to adata.obs, replacing previous results if they exist
-        adata.obs = adata.obs.drop("sc3s", axis=1, errors='ignore')
+        adata.obs = adata.obs.drop("sc3s_" + str(K), axis=1, errors='ignore')
         adata.obs.insert(len(adata.obs.columns), "sc3s_" + str(K), 
-            pd.Categorical(kmeans_macro.labels_), allow_duplicates=True)
+            pd.Categorical(kmeans_macro.labels_), allow_duplicates=False)
