@@ -3,6 +3,7 @@ import numpy as np
 import math
 import itertools
 from scipy.cluster.vq import kmeans2 as kmeans
+from scipy.sparse import issparse
 
 def strm_spectral(data, num_clust, 
                   k = 100, streammode = True, svd_algorithm = "sklearn",
@@ -96,7 +97,10 @@ def strm_spectral(data, num_clust,
             j = stream
         
         # obtain current stream and concatenate to previous memory
-        C[lowrankdim:, :] = data[lut[i:(i+j)], ]
+        if issparse(data[lut[i:(i+j)], ]):
+            C[lowrankdim:, :] = data[lut[i:(i+j)], ].todense()
+        else:
+            C[lowrankdim:, :] = data[lut[i:(i+j)], ]
 
         # update embedding and rotate centroids from previous iteration
         C, V, current_cells = _update_embedding(C, lowrankdim, svd)
@@ -113,10 +117,10 @@ def strm_spectral(data, num_clust,
         Vold = V
        
     # unrandomise the ordering
-    runs = {t: _reorder_cells(run, lut) for t, run in runs.items()}
+    runs = {(lowrankdim, t): _reorder_cells(run, lut) for t, run in runs.items()}
 
     # consolidate microclusters into macroclusters, add the lowrankdim in the key
-    runs = {(lowrankdim, t): weighted_kmeans(run['cent'], run['asgn'], num_clust) for t, run in runs.items()}
+    #runs = {(lowrankdim, t): weighted_kmeans(run['cent'], run['asgn'], num_clust) for t, run in runs.items()}
     print("\nspectral clustering finished!\n")
 
     return runs
