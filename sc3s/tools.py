@@ -29,7 +29,7 @@ def consensus_clustering(
 
     for K in num_clust:
         # consolidate microclusters
-        clusterings_macro = {k: weighted_kmeans(run['cent'], run['asgn'], K) for k, run in runs.items()}
+        clusterings_macro = {k: weighted_kmeans(run['cent'], run['asgn'], K) for k, run in clusterings.items()}
 
         # convert to binary matrix
         consensus_matrix = convert_clusterings_to_binary(clusterings_macro)
