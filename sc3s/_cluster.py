@@ -5,9 +5,9 @@ import itertools
 from scipy.cluster.vq import kmeans2 as kmeans
 from scipy.sparse import issparse
 
-def strm_spectral(data, num_clust, 
-                  k = 100, streammode = True, svd_algorithm = "sklearn",
-                  initial = 0.2, stream = 0.02, lowrankdim = 0.05, n_parallel = 5,
+def strm_spectral(data, k = 100, 
+                  streammode = True, svd_algorithm = "sklearn",
+                  initial = 0, stream = 0, lowrankdim = 0.05, n_parallel = 5,
                   initialmin = 10**3, streammin = 10,
                   initialmax = 10**5, streammax = 100, randomcellorder = True):
     """

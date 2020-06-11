@@ -22,7 +22,7 @@ def consensus_clustering(
 
     # generate microclusters
     for i in range(0, len(lowrankrange)):
-        runs = strm_spectral(adata.X, num_clust, k=n_facility, n_parallel=n_parallel,
+        runs = strm_spectral(adata.X, k=n_facility, n_parallel=n_parallel,
             streammode=True, svd_algorithm=svd_algorithm, 
             initial=initial, stream=stream, lowrankdim = lowrankrange[i])
         facilities.update(runs)
@@ -33,6 +33,31 @@ def consensus_clustering(
         result = _combine_clustering_runs(clusterings, K)
         _write_results_to_anndata(result, adata, num_clust=K)
 
+
+def consensus_clustering_legacy(
+    adata, num_clust = [4],
+    streaming = False, svd_algorithm = "sklearn",
+    lowrankrange = range(10,20), n_parallel = 5,
+    randomcellorder = True):
+
+    assert _check_iterable(num_clust), "pls ensure num_clust is a list"
+
+    for K in num_clust:
+        for i in range(0, len(lowrankrange)):
+            # empty dictionary to hold the clustering results
+            clusterings = {}
+
+            # run spectral clustering, parameters modified to use the whole batch
+            runs = strm_spectral(adata.X, k=K, n_parallel=n_parallel,
+                streammode=False, svd_algorithm=svd_algorithm, initial=adata.X.shape[0],
+                initialmin=adata.X.shape[0], initialmax=adata.X.shape[0], # just so it behaves
+                lowrankdim = lowrankrange[i])
+            clusterings.update(runs)
+
+            # perform the consensus clusterings
+            clusterings = {k: v['asgn'] for k,v in clusterings.items()}
+            result = _combine_clustering_runs(clusterings, K)
+            _write_results_to_anndata(result, adata, num_clust=K, prefix='sc3ori_')
 
 #from sklearn.cluster import KMeans
 #import pandas as pd ???
