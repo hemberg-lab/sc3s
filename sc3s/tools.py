@@ -1,10 +1,10 @@
 from ._cluster import strm_spectral
 from ._utils import _check_iterable
-from ._utils import calculate_rmse, weighted_kmeans, convert_clusterings_to_binary
+from ._utils import calculate_rmse
+from ._utils import _write_results_to_anndata
+from ._utils import _combine_clustering_runs_kmeans, _consolidate_microclusters
+from ._utils import _combine_clustering_runs_hierarchical
 
-from sklearn.cluster import KMeans
-import numpy as np
-import pandas as pd
 
 def consensus_clustering(
     adata, num_clust = [4], n_facility = 100,
@@ -30,7 +30,7 @@ def consensus_clustering(
     # use microclusters to run different values of num_clust
     for K in num_clust:
         clusterings = _consolidate_microclusters(facilities, K)
-        result = _combine_clustering_runs(clusterings, K)
+        result = _combine_clustering_runs_kmeans(clusterings, K)
         _write_results_to_anndata(result, adata, num_clust=K)
 
 
@@ -56,41 +56,5 @@ def consensus_clustering_legacy(
 
         # perform the consensus clusterings
         clusterings = {k: v['asgn'] for k, v in clusterings.items()}
-        result = _combine_clustering_runs_legacy(clusterings, K)
+        result = _combine_clustering_runs_hierarchical(clusterings, K)
         _write_results_to_anndata(result, adata, num_clust=K, prefix='sc3ori_')
-    
-    return clusterings
-
-#from sklearn.cluster import KMeans
-#import pandas as pd ???
-
-def _write_results_to_anndata(result, adata, num_clust='result', prefix='sc3s_'):
-    # mutating function
-    # write clustering results to adata.obs, replacing previous results if they exist
-    adata.obs = adata.obs.drop(prefix + str(num_clust), axis=1, errors='ignore')
-    adata.obs.insert(len(adata.obs.columns), prefix + str(num_clust), result, allow_duplicates=False)
-
-def _combine_clustering_runs(clusterings, num_clust):
-    # combine clustering results using binary matrix method and k-means
-    consensus_matrix = convert_clusterings_to_binary(clusterings)
-    kmeans_macro = KMeans(n_clusters=num_clust, max_iter=10_000).fit(consensus_matrix)
-    return pd.Categorical(kmeans_macro.labels_)
-
-def _consolidate_microclusters(clusterings, num_clust):
-    # take dict of clustering runs and consolidate with weighted k-means
-    return {k: weighted_kmeans(run['cent'], run['asgn'], num_clust) for k, run in clusterings.items()}
-
-from sklearn.cluster import AgglomerativeClustering
-def convert_clusterings_to_contigency(clusterings):
-    X = np.array([x for x in clusterings.values()]).T   # row: cell, col: clustering run
-    C = np.zeros((X.shape[0], X.shape[0]))
-    for i in np.arange(0, X.shape[0]):
-        C[i,] = np.sum(X[i,:] == X, axis=1) / X.shape[1]
-    assert np.allclose(C, C.T), "contingency matrix not symmetrical"
-    return C
-
-def _combine_clustering_runs_legacy(clusterings, num_clust):
-    # convert to contingency-based consensus, then does hierarchical clustering
-    consensus_matrix = convert_clusterings_to_contigency(clusterings)
-    hclust = AgglomerativeClustering(n_clusters=num_clust, linkage='complete').fit(consensus_matrix)
-    return pd.Categorical(hclust.labels_)
