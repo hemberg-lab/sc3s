@@ -219,10 +219,10 @@ def _strm_kmeans(centroids, current_cells, k, assignments, i, restartchance = 0.
     # assign new cells to centroids
     # by random chance, we reinitialise the centroids
     if np.random.rand() < restartchance:
-        points, new_assignments = kmeans(points, k, iter=500, thresh=1e-5, minit="random")
+        points, new_assignments = kmeans(points, k, iter=1000, thresh=1e-5, minit="random")
         print("reinitialised centroids!\n")
     else:
-        points, new_assignments = kmeans(points, points[:k,], iter=100, thresh=1e-5, minit="matrix")
+        points, new_assignments = kmeans(points, points[:k,], iter=500, thresh=1e-5, minit="matrix")
     
     centroids = points[:k]
 
