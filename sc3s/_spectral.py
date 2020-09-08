@@ -1,7 +1,5 @@
-from ._utils import svd_scipy, svd_sklearn, weighted_kmeans
+from ._matrix import svd_scipy, svd_sklearn
 import numpy as np
-import math
-import itertools
 from scipy.cluster.vq import kmeans2 as kmeans
 from scipy.sparse import issparse
 
@@ -28,29 +26,6 @@ def strm_spectral(data, k = 100,
     assert initialmin <= initialmax
     assert streammin <= streammax
 
-    """
-    # calculate low rank representation size
-    # we want the representation of cells in a lower dimensionality space, not of genes
-    # I actually think rounding up is a mistake, should round down and throw an error if needed
-    lowrankdim = math.ceil(lowrankdim * n_cells)
-
-    # calculate size of initial stream
-    if n_cells < initialmin + 1:
-        initial = n_cells
-    else:
-        initial = int(math.ceil(initial * n_cells / 10) * 10) # nearest 10th
-        if initial > n_cells: # can this happen in practice?
-            initial = n_cells
-            
-    # calculate size of subsequent streams
-    if initial != n_cells:
-        stream = int(math.ceil(stream * n_cells / 10) * 10) # nearest 10th
-        if stream < streammin + 1:
-            stream = streammin
-        elif stream > streammax:
-            stream = streammax
-    """
-    
     # initialise, and print all the parameters
     i, j = 0, initial
     n_cells, n_genes = data.shape

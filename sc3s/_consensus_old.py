@@ -1,13 +1,9 @@
-from ._cluster import strm_spectral
-from ._utils import _check_iterable
-from ._utils import calculate_rmse
-from ._utils import _write_results_to_anndata
-from ._utils import _combine_clustering_runs_kmeans, _consolidate_microclusters
-from ._utils import _combine_clustering_runs_hierarchical
+from ._spectral import strm_spectral
+from ._misc import _check_iterable, _write_results_to_anndata
 import datetime
-
 import numpy as np
-from sklearn.cluster import KMeans, AgglomerativeClustering
+import pandas as pd
+from sklearn.cluster import AgglomerativeClustering
 
 def consensus_clustering_legacy(
     adata, num_clust = [4],
