@@ -1,48 +1,45 @@
+from ._cluster import strm_spectral
+from ._utils import _check_iterable
+from ._utils import calculate_rmse
+from ._utils import _write_results_to_anndata
+from ._utils import _combine_clustering_runs_kmeans, _consolidate_microclusters
+from ._utils import _combine_clustering_runs_hierarchical
+import datetime
 import numpy as np
 import pandas as pd
-import math
-from scipy import linalg
-from sklearn.decomposition import TruncatedSVD
-from sklearn.cluster import KMeans, AgglomerativeClustering
 
-def calculate_rmse(A, B):
-    """
-    Calculate root mean squared error between two matrices.
-    """
-    error = A - B
-    return np.sum(error ** 2)
+def consensus_clustering(
+    adata, num_clust = [4], n_facility = 100,
+    streaming = True, svd_algorithm = "sklearn",
+    initial = 100, stream = 50,
+    lowrankrange = range(10,20), n_parallel = 5,
+    initialmin = 10**3, streammin = 10,
+    initialmax = 10**5, streammax = 100,
+    randomcellorder = True):
 
+    assert _check_iterable(num_clust), "pls ensure num_clust is a list"
 
-def svd_scipy(X, n_components):
-    """
-    Singular value decomposition using `scipy.linalg.svd`.
-    Returned matrices are truncated to the value of `n_components`.
-    """
-    U, s, Vh = linalg.svd(X, full_matrices=False)
-    U  = U[:, :n_components]
-    s  = s[:n_components]
-    Vh = Vh[:n_components, ]
-    return U, s, Vh
+    time_start = datetime.datetime.now()
+    print("start time:", time_start.strftime("%Y-%m-%d %H:%M:%S"))
 
+    # empty dictionary to hold the microclusters
+    facilities = {}
 
-def inv_svd(U, s, Vh):
-    """
-    Inverse of the singular value decomposition.
-    """
-    return np.dot(U, np.dot(np.diag(s), Vh))
+    # generate microclusters
+    for i in range(0, len(lowrankrange)):
+        runs = strm_spectral(adata.X, k=n_facility, n_parallel=n_parallel,
+            streammode=True, svd_algorithm=svd_algorithm, 
+            initial=initial, stream=stream, lowrankdim = lowrankrange[i])
+        facilities.update(runs)
 
-
-def svd_sklearn(X, n_components, n_iter=5, random_state=None):
-    """
-    Truncated singular value decomposition using `scikitlearn`.
-    """
-    svd = TruncatedSVD(n_components, algorithm="randomized", n_iter=n_iter,
-                       random_state=random_state)
-    U = svd.fit_transform(X)
-    s = svd.singular_values_
-    Vh = svd.components_
-    U = U / np.tile(s, (U.shape[0],1)) # by default, U is scaled by s
-    return U, s, Vh
+    # use microclusters to run different values of num_clust
+    for K in num_clust:
+        clusterings = _consolidate_microclusters(facilities, K)
+        result = _combine_clustering_runs_kmeans(clusterings, K)
+        _write_results_to_anndata(result, adata, num_clust=K)
+    
+    runtime = datetime.datetime.now() - time_start
+    print("total runtime:", str(runtime))
 
 
 def weighted_kmeans(centroids, assignments, num_clust):
@@ -107,28 +104,6 @@ def convert_clusterings_to_binary(clusterings, datatype='float32'):
 
     return B
 
-def convert_clusterings_to_contigency(clusterings):
-    X = np.array([x for x in clusterings.values()]).T   # row: cell, col: clustering run
-    C = np.zeros((X.shape[0], X.shape[0]))
-    for i in np.arange(0, X.shape[0]):
-        C[i,] = np.sum(X[i,:] == X, axis=1) / X.shape[1]
-    assert np.allclose(C, C.T), "contingency matrix not symmetrical"
-    return C
-
-def _write_results_to_anndata(result, adata, num_clust='result', prefix='sc3s_'):
-    # mutating function
-    # write clustering results to adata.obs, replacing previous results if they exist
-    adata.obs = adata.obs.drop(prefix + str(num_clust), axis=1, errors='ignore')
-    adata.obs.insert(len(adata.obs.columns), prefix + str(num_clust), result, allow_duplicates=False)
-
-def _check_iterable(obj):
-    try:
-        iter(obj)
-    except Exception:
-        return False
-    else:
-        return True
-
 
 def _consolidate_microclusters(clusterings, num_clust):
     # take dict of clustering runs and consolidate with weighted k-means
@@ -139,9 +114,3 @@ def _combine_clustering_runs_kmeans(clusterings, num_clust):
     consensus_matrix = convert_clusterings_to_binary(clusterings)
     kmeans_macro = KMeans(n_clusters=num_clust, max_iter=10_000).fit(consensus_matrix)
     return pd.Categorical(kmeans_macro.labels_)
-
-def _combine_clustering_runs_hierarchical(clusterings, num_clust):
-    # convert to contingency-based consensus, then does hierarchical clustering
-    consensus_matrix = convert_clusterings_to_contigency(clusterings)
-    hclust = AgglomerativeClustering(n_clusters=num_clust, linkage='complete').fit(consensus_matrix)
-    return pd.Categorical(hclust.labels_)
