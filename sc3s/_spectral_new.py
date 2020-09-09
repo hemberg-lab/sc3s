@@ -1,3 +1,9 @@
+from ._matrix import svd_scipy, svd_sklearn
+import numpy as np
+from scipy.cluster.vq import kmeans2 as kmeans
+from scipy.sparse import issparse
+from sklearn.cluster import MiniBatchKMeans
+
 def strm_spectral_new(data,
                   k = 100, 
                   lowrankdim = 25, # rename as n_component
@@ -37,12 +43,13 @@ def strm_spectral_new(data,
         np.random.shuffle(lut)
 
     # create dictionary with centroids and assignments of the k-means runs
-    runs = {t: {'cent': np.empty((k, lowrankdim)),
+    runs = {t: {'cent': np.empty((0, lowrankdim)),
                 'asgn': np.empty(n_cells, dtype='int32')} for t in range(0, n_runs)}
 
     # initialise structures to be updated during training
     sketch_matrix = np.empty((lowrankdim, n_genes)) # learned embedding
     gene_sum = np.empty(n_genes) # to calculate dataset centroid
+    Vold = None # to skip initial rotation
     
     print("beginning the stream...\n")
     while i < n_cells:
@@ -68,7 +75,8 @@ def strm_spectral_new(data,
         sketch_matrix, V, u, gene_sum = _embed(cells, C, gene_sum, lowrankdim, svd)
 
         # rotate centroids
-        assert np.all(Vold != V), "rotation matrices are the same!"
+        Vold = V if Vold is None
+        #assert np.all(Vold != V), "rotation matrices are the same!"
         runs = {t: _rotate_centroids(run, V, Vold) for t, run in runs.items()}
 
         # assign new cells to centroids, centroids are reinitialised by random chance
@@ -123,31 +131,119 @@ def _embed(cells, sketch_matrix, sum_gene, lowrankdim, svd = "sklearn"):
     # normalise the landmarks in each cell (row-wise)
     u = U / np.transpose(np.tile(np.linalg.norm(U, axis=1), (lowrankdim, 1)))
 
-    return sketch_matrix, V, u. sum_genes
-
-
-
-
-
-
-
-
-
-
-    # get the centroid and calculate the degree matrix and normalised laplacian
-
-    # make a new matrix, and then append the previous C, and new cells and into it
-
-    # run SVD
-
-    # calculate coordinates of new cells, it's the 
-    
-    # return sketch_matrix, V, U
     # (return the whole U as it is, which is a n_cell x k column, subset as necessary)
+    return sketch_matrix, V, u, sum_genes
     
-    C = np.empty()
-    sketch_matrix = 
 
-def _assign(run, cell_projections, k, lut, i, j):
-    # incorporate something related to miniKmeansBatch
+ 
+
+def _assign(run, cell_projections, k, lut, i, j, batch = 100, restart_chance = 0.05):
+    assert run['cent'].shape[1] == cell_projections.shape[1], 
+        "dimensions of centroids and cell projections not equal"
+    assert cell_projections.shape[0] == i + j + 1, 
+        "LUT indices and number of cells not equal"
+    # should also test that the run contains cent and assgn (can do in arguments?)
+    # add random state later on
+
+    # join current cells with previous points to be clustered together
+    n_centroid = run['cent'].shape[0]
+    points = np.concatenate((run['cent'], cell_projections), axis=0)
+
+    # initialise k means object, to add: random state
+    # by random chance, centroids are reinitialised
+    if np.random.rand() < restart_chance:
+        kmeans = MiniBatchKMeans(n_clusters=k, batch_size=batch) 
+    else:
+        kmeans = MiniBatchKMeans(n_clusters=k, batch_size=batch, init=run["cent"]) 
+    
+    # run k means function and extract results
+    kmeans = kmeans.fit(points)
+    run['cent'] = kmeans.cluster_centers_
+    centroid_reassignments, cell_assignments = kmeans.labels_[:n_centroid], kmeans.labels_[n_centroid:]
+    
+    # updates assignments for previous cells based on new centroid labels
+    run['asgn'][lut[:i]] = centroid_reassignments[run['asgn'][lut[:i]]]
+
+    # write assignments for cells in current stream
+    run['asgn'][lut[i:j]] = cell_assignments
+    
+    return run
+
+        # WHAT DOES THIS DO AGAIN??
+           def resize_centroids(run, k, j):
+                run['cent'] = run['cent'][:(k+j)]
+                return run
+            runs = {t: resize_centroids(run, k, j) for t, run in runs.items()}
+
+
+
+def _strm_kmeans(centroids, current_cells, k, assignments, i, restartchance = 0.05):
+    """
+    Cluster the rows in `points` into `k` clusters, using the first `k` points
+    as initial cluster centers, which are then also updated.
+    
+    Add `assignments` for new points, and also updates those of the previous `i` points.
+
+    `points` and `assignments` must have the same depth (i.e. number of realisations).
+    """
+    points = np.concatenate((centroids, current_cells), axis=0)
+
+    # assign new cells to centroids
+    # by random chance, we reinitialise the centroids
+    if np.random.rand() < restartchance:
+        points, new_assignments = kmeans(points, k, iter=1000, thresh=1e-5, minit="random")
+        print("reinitialised centroids!\n")
+    else:
+        points, new_assignments = kmeans(points, points[:k,], iter=500, thresh=1e-5, minit="matrix")
+    
+    centroids = points[:k]
+
+    # update assignments for the previous cells, based on the updated centroids
+    assignments[:i] = new_assignments[assignments[:i]]
+
+    # write assignments for current cells
+    assignments[i:] = new_assignments[k:,]
+
+    return centroids, assignments
+
+
+
+def _cluster_subsequent_cells(run, current_cells, k, lut, i, j):
+    """
+    Executes streaming k-means in parallel. `run` is a dictionary holding the result of an individual run.
+    """
+    run['cent'], run['asgn'][lut[:(i+j)]] = _strm_kmeans(run['cent'], 
+        current_cells, k, assignments = run['asgn'][lut[:(i+j)]], i = i)
+    return run
+
+
+def _cluster_initial_cells(run, current_cells, k, lut, index):
+    """
+    Clusters the first cells in parallel. `run` is a dictionary holding the result of an individual run.
+    """
+    run['cent'], run['asgn'][lut[:index]] = kmeans(current_cells, k, iter=500, thresh=1e-5)
+    return run
+
+
+
+
+runs = {t: assign(run, u, k, lut, i, j) for t, run in runs.items()}
+
+def _rotate_centroids(run, V, Vold):
+    """
+    Rotate centroids from landmark into old gene space, then into updated landmark space.
+    """
+    run['cent'] = np.dot(np.dot(run['cent'], Vold), np.transpose(V))
+    return run
+
+def _reorder_cells(run, lut):
+    """
+    Reorder the cells given the lookup table.
+    """
+    assignments = run['asgn']
+    reordered_assignments = np.empty(len(assignments), dtype=int)
+    reordered_assignments[lut]= assignments[lut]
+    return run
+
+
 
