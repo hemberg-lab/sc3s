@@ -1,4 +1,4 @@
-from ._spectral import strm_spectral
+from ._spectral_new import strm_spectral
 from ._misc import _check_iterable, _write_results_to_anndata
 import datetime
 import numpy as np
@@ -6,16 +6,18 @@ import pandas as pd
 from sklearn.cluster import KMeans
 
 def consensus_clustering(
-    adata, num_clust = [4], n_facility = 100,
-    streaming = True, svd_algorithm = "sklearn",
-    initial = 100, stream = 50,
-    lowrankrange = range(10,20), n_parallel = 5,
-    initialmin = 10**3, streammin = 10,
-    initialmax = 10**5, streammax = 100,
-    randomcellorder = True):
+    adata,
+    num_clust = [4],
+    n_facility = 100,
+    lowrankrange = range(10, 20),
+    stream = 1000,
+    batch = 100,
+    n_runs = 5,
+    svd = "sklearn",
+    randomcellorder = True,
+    restart_chance = 0.05):
 
     assert _check_iterable(num_clust), "pls ensure num_clust is a list"
-
     time_start = datetime.datetime.now()
     print("start time:", time_start.strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -24,9 +26,11 @@ def consensus_clustering(
 
     # generate microclusters
     for i in range(0, len(lowrankrange)):
-        runs = strm_spectral(adata.X, k=n_facility, n_parallel=n_parallel,
-            streammode=True, svd_algorithm=svd_algorithm, 
-            initial=initial, stream=stream, lowrankdim = lowrankrange[i])
+        runs = strm_spectral(adata.X, k = n_facility,
+                             lowrankdim = lowrankrange[i],
+                             stream = stream, batch = batch,
+                             svd = svd, n_runs = n_runs,
+                             randomcellorder = randomcellorder)
         facilities.update(runs)
 
     # use microclusters to run different values of num_clust
