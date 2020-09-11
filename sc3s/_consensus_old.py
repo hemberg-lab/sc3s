@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
-def consensus_clustering_legacy(
+def consensus_old(
     adata, num_clust = [4],
     streaming = False, svd_algorithm = "sklearn",
     lowrankrange = range(10,20), n_parallel = 5,

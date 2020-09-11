@@ -1,2 +1,2 @@
-from ._consensus import consensus_clustering
-from ._consensus_old import consensus_clustering_legacy
+from ._consensus import consensus
+from ._consensus_old import consensus_old

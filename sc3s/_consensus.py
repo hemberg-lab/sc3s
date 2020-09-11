@@ -1,11 +1,11 @@
-from ._spectral_new import strm_spectral
+from ._spectral import strm_spectral
 from ._misc import _check_iterable, _write_results_to_anndata
 import datetime
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 
-def consensus_clustering(
+def consensus(
     adata,
     num_clust = [4],
     n_facility = 100,
