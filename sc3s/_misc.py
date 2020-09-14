@@ -1,35 +1,32 @@
 import numpy as np
 import pandas as pd
+import inspect
 
-def calculate_rmse(A, B):
+def _parse_int_list(x, error_msg = "value must be integer > 1, or a non-empty list/range of such!"):
     """
-    Calculate root mean squared error between two matrices.
+    Parse
     """
-    error = A - B
-    return np.sum(error ** 2)
-
-
-def _check_iterable(obj):
-    """
-    Check whether something is an iterable (e.g. list).
-    """
-    try:
-        iter(obj)
-    except Exception:
-        return False
+    if x is None:
+        x = [3, 5, 10]
+    elif isinstance(x, int) and x > 1:
+        x = [x]
+    elif isinstance(x, range):
+        if len(x) > 0:
+            pass
+        else:
+            raise Exception(error_msg)
+    elif isinstance(x, list):
+        for num in x:
+            if isinstance(i, int) and i > 1:
+                pass
+            else:
+                raise Exception(error_msg)
     else:
-        return True
+        raise Exception(error_msg)
+    
+    return x
 
-def _write_results_to_anndata(result, adata, num_clust='result', prefix='sc3s_'):
-    """
-    Mutating function. Add clustering labels as a new column in `adata`'s obs dataframe.
-
-    Unit test whether this adds propwerly, if there is already something with the same name, or not.
-    """
-    adata.obs = adata.obs.drop(prefix + str(num_clust), axis=1, errors='ignore')
-    adata.obs.insert(len(adata.obs.columns), prefix + str(num_clust), result, allow_duplicates=False)
-
-def get_num_range(num_clust, num_per_side=1, step=2, prefix = None):
+def _generate_num_range(num_clust, num_per_side=1, step=3, prefix = None):
     """
     What does this do again? Unit test this please.
     """
@@ -40,3 +37,22 @@ def get_num_range(num_clust, num_per_side=1, step=2, prefix = None):
         return clust_range
     else:
         return list(map(lambda x: prefix + str(x), clust_range))
+
+
+def calculate_rmse(A, B):
+    """
+    Calculate root mean squared error between two matrices.
+    """
+    error = A - B
+    return np.sum(error ** 2)
+    
+
+def _write_results_to_anndata(result, adata, num_clust='result', prefix='sc3s_'):
+    """
+    Mutating function. Add clustering labels as a new column in `adata`'s obs dataframe.
+
+    Unit test whether this adds propwerly, if there is already something with the same name, or not.
+    """
+    adata.obs = adata.obs.drop(prefix + str(num_clust), axis=1, errors='ignore')
+    adata.obs.insert(len(adata.obs.columns), prefix + str(num_clust), result, allow_duplicates=False)
+

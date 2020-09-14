@@ -1,5 +1,5 @@
 from ._spectral import strm_spectral
-from ._misc import _check_iterable, _write_results_to_anndata
+from ._misc import _write_results_to_anndata
 import datetime
 import numpy as np
 import pandas as pd
@@ -14,7 +14,8 @@ def consensus_old(
     Old version of SC3.
     """
 
-    assert _check_iterable(num_clust), "pls ensure num_clust is a list"
+    num_clust = _parse_int_list(num_clust, error_msg = "num_clust must be integer > 1, or a non-empty list/range of such!")
+    lowrankrange = _parse_int_list(lowrankrange, error_msg = "lowrankrange must be integer > 1, or a non-empty list/range of such!")
 
     time_start = datetime.datetime.now()
     print("start time:", time_start.strftime("%Y-%m-%d %H:%M:%S"))
