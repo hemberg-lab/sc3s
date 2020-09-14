@@ -1,4 +1,4 @@
-from ._matrix import svd_scipy, svd_sklearn
+from ._matrix import _svd_sklearn
 import numpy as np
 from scipy.cluster.vq import kmeans2 as kmeans
 from scipy.sparse import issparse
@@ -28,13 +28,14 @@ def _spectral(data,
     i = 0
     j = i + stream
     n_cells, n_genes = data.shape
-    print(f"""PARAMETERS:
+    print(f"""
+    PARAMETERS:
     
     num_cells: {n_cells}, n_genes: {n_genes}
     
     stream size: {stream}
     number of components: {lowrankdim}
-    SVD algorithm: {svd}
+    SVD algorithm: scikit-learn TruncatedSVD
 
     """)
 
@@ -111,10 +112,7 @@ def _embed(cells, sketch_matrix, gene_sum, lowrankdim, svd = "sklearn"):
 
     # choose svd algorithm (maybe use a switch case)
     # https://jaxenter.com/implement-switch-case-statement-python-138315.html
-    if svd == "sklearn":
-        U, s, V = svd_sklearn(C, lowrankdim)
-    elif svd == "scipy":
-        U, s, V = svd_scipy(C, lowrankdim)
+    U, s, V = _svd_sklearn(C, lowrankdim)
     
     # update sketch matrix
     s2 = s**2
