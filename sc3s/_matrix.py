@@ -13,14 +13,6 @@ def svd_scipy(X, n_components):
     Vh = Vh[:n_components, ]
     return U, s, Vh
 
-
-def inv_svd(U, s, Vh):
-    """
-    Inverse of the singular value decomposition.
-    """
-    return np.dot(U, np.dot(np.diag(s), Vh))
-
-
 def svd_sklearn(X, n_components, n_iter=5, random_state=None):
     """
     Truncated singular value decomposition using `scikitlearn`.
@@ -32,3 +24,9 @@ def svd_sklearn(X, n_components, n_iter=5, random_state=None):
     Vh = svd.components_
     U = U / np.tile(s, (U.shape[0],1)) # by default, U is scaled by s
     return U, s, Vh
+
+def inv_svd(U, s, Vh):
+    """
+    Inverse of the singular value decomposition.
+    """
+    return np.dot(U, np.dot(np.diag(s), Vh))

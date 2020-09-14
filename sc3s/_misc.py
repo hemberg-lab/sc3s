@@ -17,7 +17,7 @@ def _parse_int_list(x, error_msg = "value must be integer > 1, or a non-empty li
             raise Exception(error_msg)
     elif isinstance(x, list):
         for num in x:
-            if isinstance(i, int) and i > 1:
+            if isinstance(num, int) and num > 1:
                 pass
             else:
                 raise Exception(error_msg)
@@ -45,7 +45,7 @@ def calculate_rmse(A, B):
     """
     error = A - B
     return np.sum(error ** 2)
-    
+
 
 def _write_results_to_anndata(result, adata, num_clust='result', prefix='sc3s_'):
     """

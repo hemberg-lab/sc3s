@@ -1,4 +1,4 @@
-from ._spectral import strm_spectral
+from ._spectral import _spectral
 from ._misc import _write_results_to_anndata
 import datetime
 import numpy as np
@@ -26,7 +26,7 @@ def consensus_old(
 
         for i in range(0, len(lowrankrange)):
             # run spectral clustering, parameters modified to use the whole batch
-            runs = strm_spectral(adata.X, k=K, n_parallel=n_parallel,
+            runs = _spectral(adata.X, k=K, n_parallel=n_parallel,
                 streammode=False, svd_algorithm=svd_algorithm, initial=adata.X.shape[0],
                 initialmin=adata.X.shape[0], initialmax=adata.X.shape[0], # just so it behaves
                 lowrankdim = lowrankrange[i])

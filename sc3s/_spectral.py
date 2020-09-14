@@ -4,15 +4,15 @@ from scipy.cluster.vq import kmeans2 as kmeans
 from scipy.sparse import issparse
 from sklearn.cluster import MiniBatchKMeans
 
-def strm_spectral(data,
-                  k = 100, 
-                  lowrankdim = 25, # rename as n_component
-                  stream = 1000,
-                  batch = 100,
-                  n_runs = 5,
-                  svd = "sklearn",
-                  randomcellorder = True,
-                  restart_chance = 0.05):
+def _spectral(data,
+              k = 100, 
+              lowrankdim = 25, # rename as n_component
+              stream = 1000,
+              batch = 100,
+              n_runs = 5,
+              svd = "sklearn",
+              randomcellorder = True,
+              restart_chance = 0.05):
     """
     Cluster the cells into microclusters. k should be set to a relatively large number, maybe a 
     fraction of the first batch?

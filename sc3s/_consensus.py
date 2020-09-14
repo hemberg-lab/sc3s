@@ -1,4 +1,4 @@
-from ._spectral import strm_spectral
+from ._spectral import _spectral
 from ._misc import _write_results_to_anndata, _parse_int_list
 import datetime
 import numpy as np
@@ -28,11 +28,11 @@ def consensus(
 
     # generate microclusters
     for i in range(0, len(lowrankrange)):
-        runs = strm_spectral(adata.X, k = n_facility,
-                             lowrankdim = lowrankrange[i],
-                             stream = stream, batch = batch,
-                             svd = svd, n_runs = n_runs,
-                             randomcellorder = randomcellorder)
+        runs = _spectral(adata.X, k = n_facility,
+                         lowrankdim = lowrankrange[i],
+                         stream = stream, batch = batch,
+                         svd = svd, n_runs = n_runs,
+                         randomcellorder = randomcellorder)
         facilities.update(runs)
 
     # use microclusters to run different values of num_clust
