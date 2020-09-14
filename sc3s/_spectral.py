@@ -23,23 +23,22 @@ def _spectral(data,
 
     Need to modularise steps more (see separate notes).
     """
-    
-    # initialise and print parameters
-    i = 0
-    j = i + stream
+
     n_cells, n_genes = data.shape
-    print(f"""
-    PARAMETERS:
-    
-    num_cells: {n_cells}, n_genes: {n_genes}
-    
-    stream size: {stream}
-    number of components: {lowrankdim}
-    SVD algorithm: scikit-learn TruncatedSVD
 
-    """)
+    # check parameters
+    assert isinstance(k, int)
+    assert isinstance(lowrankdim, int)
+    assert isinstance(stream, int) and stream <= n_cells
+    assert isinstance(batch, int) and batch <= stream
+    assert isinstance(n_runs, int) and n_runs >= 1
+    assert isinstance(randomcellorder, bool)
+    assert 0 <= restart_chance <= 1
+    print(f"running spectral clustering, num_components = {lowrankdim}")
 
-    # generate look up table for the random ordering of cells
+    i, j = 0, stream
+    
+    # look up table for randomising cell order
     lut = np.arange(n_cells) 
     if randomcellorder is True:
         np.random.shuffle(lut)
@@ -53,7 +52,6 @@ def _spectral(data,
     gene_sum = np.zeros(n_genes) # to calculate dataset centroid
     Vold = None # to skip initial rotation
     
-    print("beginning the stream...\n")
     while i < n_cells:
         # obtain range of current stream
         if (n_cells - i) < stream: # resize last stream
@@ -82,6 +80,7 @@ def _spectral(data,
 
     # unrandomise the ordering
     runs = {(lowrankdim, t): _reorder_cells(run, lut) for t, run in runs.items()}
+    print(f"...done!\n")
 
     return runs
 

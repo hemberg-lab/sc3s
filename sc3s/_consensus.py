@@ -3,6 +3,7 @@ from ._misc import _write_results_to_anndata, _parse_int_list
 import datetime
 import numpy as np
 import pandas as pd
+import anndata as ad
 from sklearn.cluster import KMeans
 
 def consensus(
@@ -17,11 +18,43 @@ def consensus(
     randomcellorder = True,
     restart_chance = 0.05):
 
-    num_clust = _parse_int_list(num_clust, error_msg = "num_clust must be integer > 1, or a non-empty list/range of such!")
-    lowrankrange = _parse_int_list(lowrankrange, error_msg = "lowrankrange must be integer > 1, or a non-empty list/range of such!")
+    # parse and check arguments
+    num_clust = _parse_int_list(num_clust,
+        error_msg = "num_clust must be integer > 1, or a non-empty list/range of such!")
+    lowrankrange = _parse_int_list(lowrankrange,
+        error_msg = "lowrankrange must be integer > 1, or a non-empty list/range of such!")
+
+    assert isinstance(adata, ad.AnnData)
+    assert isinstance(n_facility, int) and n_facility > max(num_clust)
+    assert isinstance(stream, int)
+    assert isinstance(batch, int)
+    assert isinstance(n_runs, int)
+    assert isinstance(randomcellorder, bool)
+    assert 0 <= restart_chance <= 1
+
+    # shrink stream and batch parameters if too large
+    n_cells, n_genes = adata.X.shape
+    if stream > n_cells:
+        stream = n_cells
+        print(f"Size of stream reduced to {stream}")
+
+    if batch > stream:
+        batch = stream
+        print(f"Size of k-means batch reduced to {batch}")
 
     time_start = datetime.datetime.now()
-    print("start time:", time_start.strftime("%Y-%m-%d %H:%M:%S"))
+    print(f"""
+    ======================================================================
+    SC3s CONSENSUS CLUSTERING
+
+    size of dataset: {adata.shape[0]} obs, {adata.shape[1]} feature
+    stream size: {stream}
+
+    number of clusters: {num_clust}
+    lowrankdim values: {lowrankrange}
+
+    START at {time_start.strftime("%Y-%m-%d %H:%M:%S")}
+    """)
 
     # empty dictionary to hold the microclusters
     facilities = {}
@@ -41,8 +74,15 @@ def consensus(
         result = _combine_clustering_runs_kmeans(clusterings, K)
         _write_results_to_anndata(result, adata, num_clust=K)
     
+    time_end = datetime.datetime.now()
     runtime = datetime.datetime.now() - time_start
-    print("total runtime:", str(runtime))
+    print(f"""
+    END at {time_end.strftime("%Y-%m-%d %H:%M:%S")}
+
+    total runtime: {str(runtime)}
+
+    ======================================================================
+    """)
 
 
 def weighted_kmeans(centroids, assignments, num_clust):

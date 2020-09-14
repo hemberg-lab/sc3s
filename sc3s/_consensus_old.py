@@ -1,21 +1,32 @@
 from ._spectral import _spectral
 from ._misc import _write_results_to_anndata
 import datetime
+import anndata as ad
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
 def consensus_old(
-    adata, num_clust = [4],
-    streaming = False, svd_algorithm = "sklearn",
-    lowrankrange = range(10,20), n_parallel = 5,
+    adata,
+    num_clust = [4],
+    svd_algorithm = "sklearn",
+    lowrankrange = range(10,20),
+    n_runs = 5,
     randomcellorder = True):
     """
     Old version of SC3.
     """
 
-    num_clust = _parse_int_list(num_clust, error_msg = "num_clust must be integer > 1, or a non-empty list/range of such!")
-    lowrankrange = _parse_int_list(lowrankrange, error_msg = "lowrankrange must be integer > 1, or a non-empty list/range of such!")
+    # parse and check arguments
+    num_clust = _parse_int_list(num_clust,
+        error_msg = "num_clust must be integer > 1, or a non-empty list/range of such!")
+    lowrankrange = _parse_int_list(lowrankrange,
+        error_msg = "lowrankrange must be integer > 1, or a non-empty list/range of such!")
+
+    assert isinstance(adata, ad.AnnData)
+    assert isinstance(n_facility, int) and n_facility > max(num_clust)
+    assert isinstance(n_runs, int)
+    assert isinstance(randomcellorder, bool)
 
     time_start = datetime.datetime.now()
     print("start time:", time_start.strftime("%Y-%m-%d %H:%M:%S"))
@@ -26,7 +37,7 @@ def consensus_old(
 
         for i in range(0, len(lowrankrange)):
             # run spectral clustering, parameters modified to use the whole batch
-            runs = _spectral(adata.X, k=K, n_parallel=n_parallel,
+            runs = _spectral(adata.X, k=K, n_runs=n_runs,
                 streammode=False, svd_algorithm=svd_algorithm, initial=adata.X.shape[0],
                 initialmin=adata.X.shape[0], initialmax=adata.X.shape[0], # just so it behaves
                 lowrankdim = lowrankrange[i])
