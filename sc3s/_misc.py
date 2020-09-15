@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import inspect
 
 def _parse_int_list(x, error_msg = "value must be integer > 1, or a non-empty list/range of such!"):
     """
@@ -37,14 +36,6 @@ def _generate_num_range(num_clust, num_per_side=1, step=3, prefix = None):
         return clust_range
     else:
         return list(map(lambda x: prefix + str(x), clust_range))
-
-
-def calculate_rmse(A, B):
-    """
-    Calculate root mean squared error between two matrices.
-    """
-    error = A - B
-    return np.sum(error ** 2)
 
 
 def _write_results_to_anndata(result, adata, num_clust='result', prefix='sc3s_'):
