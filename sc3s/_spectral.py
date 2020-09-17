@@ -95,7 +95,7 @@ def _embed(cells, sketch_matrix, gene_sum, lowrankdim, svd = "sklearn"):
     gene_sum = gene_sum + np.sum(cells, axis = 0)
 
     # calculate dataset centroid up to current point in stream
-    dataset_centroid = gene_sum / gene_sum.shape[0]
+    dataset_centroid = gene_sum / np.linalg.norm(gene_sum) # gene_sum.shape[0]
 
     # approximate degree matrix (n_cell x n_cell)
     D = np.diag(np.dot(cells, dataset_centroid))
