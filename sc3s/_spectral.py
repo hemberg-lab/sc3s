@@ -1,4 +1,5 @@
 from ._matrix import _svd_sklearn
+from ._misc import _parse_int_list
 import numpy as np
 from scipy.cluster.vq import kmeans2 as kmeans
 from scipy.sparse import issparse
@@ -6,7 +7,7 @@ from sklearn.cluster import MiniBatchKMeans
 
 def _spectral(data,
               k = 100, 
-              lowrankdim = 25, # rename as n_component
+              d_range = 25,
               stream = 1000,
               batch = 100,
               n_runs = 5,
@@ -28,13 +29,13 @@ def _spectral(data,
 
     # check parameters
     assert isinstance(k, int)
-    assert isinstance(lowrankdim, int)
     assert isinstance(stream, int) and stream <= n_cells
     assert isinstance(batch, int) and batch <= stream
     assert isinstance(n_runs, int) and n_runs >= 1
     assert isinstance(randomcellorder, bool)
     assert 0 <= restart_chance <= 1
-    print(f"running spectral clustering, num_components = {lowrankdim}")
+    d_range = _parse_int_list(d_range)
+    print(f"running spectral clustering, num_components = {d_range}")
 
     i, j = 0, stream
     
@@ -44,14 +45,17 @@ def _spectral(data,
         np.random.shuffle(lut)
 
     # create dictionary with centroids and assignments of the k-means runs
-    runs = {t: {'cent': np.empty((0, lowrankdim)),
-                'asgn': np.empty(n_cells, dtype='int32')} for t in range(0, n_runs)}
+    runs = {}
+    for d in d_range:
+        for t in range(n_runs):
+            runs[(t,d)] = {'cent': np.empty((0, d)), 'asgn': np.empty(n_cells, dtype='int32')} 
 
     # initialise structures to be updated during training
-    sketch_matrix = np.empty((lowrankdim, n_genes)) # learned embedding
+    max_d = max(d_range)
+    sketch_matrix = np.empty((max_d, n_genes)) # learned embedding
     gene_sum = np.zeros(n_genes) # to calculate dataset centroid
     Vold = None # to skip initial rotation
-    
+
     while i < n_cells:
         # obtain range of current stream
         if (n_cells - i) < stream: # resize last stream
@@ -65,21 +69,35 @@ def _spectral(data,
         cells = data[lut[i:j], ].toarray()
         
         # update embedding
-        sketch_matrix, V, cell_projections, gene_sum = _embed(cells, sketch_matrix, gene_sum, lowrankdim, svd)
+        sketch_matrix, V, U, gene_sum = _embed(cells, sketch_matrix, gene_sum, max_d, svd)
 
         # rotate centroids
         Vold = V if Vold is None else Vold
-        #assert np.all(Vold != V), "rotation matrices are the same!"
-        runs = {t: _rotate_centroids(run, V, Vold) for t, run in runs.items()}
 
-        # assign new cells to centroids, centroids are reinitialised by random chance
-        runs = {t: _assign(run, cell_projections, k, lut, i, j, batch, restart_chance) for t, run in runs.items()}
+        # run the clustering at different values of d
+        for d in d_range:
+            # extract the correct number of components, normalise the landmarks by cell (row-wise)
+            cell_projections = U[:, :d]
+            cell_projections /= np.transpose(np.tile(np.linalg.norm(cell_projections, axis=1), (d, 1)))
+
+            # extract relevant V
+            V_d    = V[:d,]
+            Vold_d = V[:d,]
+
+            for t in range(n_runs):
+                runs[(t,d)]['cent'] = _rotate_centroids(runs[(t,d)]['cent'], V_d, Vold_d)
+                runs[(t,d)] = _assign(runs[(t,d)], cell_projections, k, lut, i, j, batch, restart_chance)
+
+        # runs = {t: _rotate_centroids(run, V, Vold) for t, run in runs.items()}
+
+        # # assign new cells to centroids, centroids are reinitialised by random chance
+        # runs = {t: _assign(run, cell_projections, k, lut, i, j, batch, restart_chance) for t, run in runs.items()}
         
         i = j
         Vold = V
 
     # unrandomise the ordering
-    runs = {(lowrankdim, t): _reorder_cells(run, lut) for t, run in runs.items()}
+    runs = {k: _reorder_cells(run, lut) for k, run in runs.items()}
     print(f"...done!\n")
 
     return runs
@@ -118,9 +136,9 @@ def _embed(cells, sketch_matrix, gene_sum, lowrankdim, svd = "sklearn"):
     s_norm = np.sqrt(s2 - s2[-1])
     sketch_matrix = np.dot(np.diag(s_norm), V)
 
-    # normalise the landmarks in each cell (row-wise)
+    # extract cell projections (n_cell x d column)
     cell_projections = U[lowrankdim:, ]
-    cell_projections = cell_projections / np.transpose(np.tile(np.linalg.norm(cell_projections, axis=1), (lowrankdim, 1)))
+    #cell_projections = cell_projections / np.transpose(np.tile(np.linalg.norm(cell_projections, axis=1), (lowrankdim, 1)))
 
     # (return the whole U as it is, which is a n_cell x k column, subset as necessary)
     return sketch_matrix, V, cell_projections, gene_sum
@@ -156,12 +174,14 @@ def _assign(run, cell_projections, k, lut, i, j, batch = 100, restart_chance = 0
     
     return run
 
-def _rotate_centroids(run, V, Vold):
+def _rotate_centroids(centroids, V, Vold):
     """
     Rotate centroids from landmark into old gene space, then into updated landmark space.
     """
-    run['cent'] = np.dot(np.dot(run['cent'], Vold), np.transpose(V))
-    return run
+    assert V.shape == Vold.shape
+    assert centroids.shape[1] == V.shape[0]
+    centroids = np.dot(np.dot(centroids, Vold), np.transpose(V))
+    return centroids
 
 def _reorder_cells(run, lut):
     """

@@ -60,16 +60,17 @@ def consensus(
     facilities = {}
 
     # generate microclusters
-    for i in range(0, len(lowrankrange)):
-        runs = _spectral(adata.X, k = n_facility,
-                         lowrankdim = lowrankrange[i],
-                         stream = stream, batch = batch,
-                         svd = svd, n_runs = n_runs,
-                         randomcellorder = randomcellorder)
-        facilities.update(runs)
+    #for i in range(0, len(lowrankrange)):
+    runs = _spectral(adata.X, k = n_facility,
+                        d_range = lowrankrange,
+                        stream = stream, batch = batch,
+                        svd = svd, n_runs = n_runs,
+                        randomcellorder = randomcellorder)
+    facilities.update(runs)
 
     # use microclusters to run different values of num_clust
     for K in num_clust:
+        print(f"running k = {K} ...")
         clusterings = _consolidate_microclusters(facilities, K)
         result = _combine_clustering_runs_kmeans(clusterings, K)
         _write_results_to_anndata(result, adata, num_clust=K)
