@@ -66,7 +66,10 @@ def _spectral(data,
         print(f"working on observations {i} to {j}...")
 
         # obtain current stream
-        cells = data[lut[i:j], ].toarray()
+        if isinstance(data, np.ndarray):
+            cells = data[lut[i:j], ]
+        else:
+            cells = data[lut[i:j], ].toarray()
         
         # update embedding
         sketch_matrix, V, U, gene_sum = _embed(cells, sketch_matrix, gene_sum, max_d, svd)
