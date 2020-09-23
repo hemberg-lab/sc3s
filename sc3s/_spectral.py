@@ -88,7 +88,7 @@ def _spectral(data,
             Vold_d = V[:d,]
 
             for t in range(n_runs):
-                runs[(t,d)]['cent'] = _rotate_centroids(runs[(t,d)]['cent'], V_d, Vold_d)
+                runs[(t,d)] = _rotate_centroids(runs[(t,d)], V_d, Vold_d)
                 runs[(t,d)] = _assign(runs[(t,d)], cell_projections, k, lut, i, j, batch, restart_chance)
 
         # runs = {t: _rotate_centroids(run, V, Vold) for t, run in runs.items()}
@@ -105,10 +105,10 @@ def _spectral(data,
 
     return runs
 
-def _embed(cells, sketch_matrix, gene_sum, lowrankdim, svd = "sklearn"):
+def _embed(cells, sketch_matrix, gene_sum, max_d, svd = "sklearn"):
     assert len(gene_sum.shape) == 1
     assert cells.shape[1] == gene_sum.shape[0], "not the same number of genes/features"
-    assert sketch_matrix.shape[0] == lowrankdim
+    assert sketch_matrix.shape[0] == max_d
 
     stream_size = cells.shape[0]
 
@@ -126,13 +126,13 @@ def _embed(cells, sketch_matrix, gene_sum, lowrankdim, svd = "sklearn"):
     laplacian = np.dot(np.sqrt(D), cells)
 
     # concatenate with previous sketch matrix and perform SVD
-    C = np.empty((lowrankdim + stream_size, sketch_matrix.shape[1]))
-    C[:lowrankdim] = sketch_matrix
-    C[lowrankdim:] = laplacian
+    C = np.empty((max_d + stream_size, sketch_matrix.shape[1]))
+    C[:max_d] = sketch_matrix
+    C[max_d:] = laplacian
 
     # choose svd algorithm (maybe use a switch case)
     # https://jaxenter.com/implement-switch-case-statement-python-138315.html
-    U, s, V = _svd_sklearn(C, lowrankdim)
+    U, s, V = _svd_sklearn(C, max_d)
     
     # update sketch matrix
     s2 = s**2
@@ -140,10 +140,8 @@ def _embed(cells, sketch_matrix, gene_sum, lowrankdim, svd = "sklearn"):
     sketch_matrix = np.dot(np.diag(s_norm), V)
 
     # extract cell projections (n_cell x d column)
-    cell_projections = U[lowrankdim:, ]
-    #cell_projections = cell_projections / np.transpose(np.tile(np.linalg.norm(cell_projections, axis=1), (lowrankdim, 1)))
+    cell_projections = U[max_d:, ]
 
-    # (return the whole U as it is, which is a n_cell x k column, subset as necessary)
     return sketch_matrix, V, cell_projections, gene_sum
 
 
@@ -177,14 +175,15 @@ def _assign(run, cell_projections, k, lut, i, j, batch = 100, restart_chance = 0
     
     return run
 
-def _rotate_centroids(centroids, V, Vold):
+def _rotate_centroids(run, V, Vold):
     """
     Rotate centroids from landmark into old gene space, then into updated landmark space.
     """
+    centroids = run['cent']
     assert V.shape == Vold.shape
     assert centroids.shape[1] == V.shape[0]
-    centroids = np.dot(np.dot(centroids, Vold), np.transpose(V))
-    return centroids
+    run['cent'] = np.dot(np.dot(centroids, Vold), np.transpose(V))
+    return run
 
 def _reorder_cells(run, lut):
     """
