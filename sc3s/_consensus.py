@@ -85,27 +85,6 @@ def consensus(
     ======================================================================
     """)
 
-
-def weighted_kmeans(centroids, assignments, num_clust):
-    """
-    Weighted k means.
-    """
-    (uniq_mclst, count_mclst) = np.unique(assignments, return_counts = True)
-
-    # count the number of cells in each microcluster assignment
-    weights = np.zeros(centroids.shape[0], dtype=int)
-    weights[uniq_mclst] = count_mclst
-
-    assert not np.any(np.isnan(centroids)), "NaNs in centroids"
-    assert np.all(np.isfinite(centroids)), "Non-finite values in centroids"
-
-    kmeans_weight = KMeans(n_clusters=num_clust, max_iter=1000).fit(centroids, sample_weight=weights+1) # pseudoweight
-    macroclusters = kmeans_weight.labels_
-    macrocentroids = kmeans_weight.cluster_centers_
-
-    return macroclusters[assignments]
-
-
 def make_consensus_binary(runs_dict, datatype='float32'):
     """
     Converts clustering results into binary matrix for K-means.
@@ -146,9 +125,34 @@ def make_consensus_binary(runs_dict, datatype='float32'):
     return B
 
 
-def _consolidate_microclusters(runs_dict, num_clust):
-    # take dict of clustering runs and consolidate with weighted k-means
-    return {k: weighted_kmeans(run['cent'], run['asgn'], num_clust) for k, run in runs_dict.items()}
+def _consolidate_microclusters(facilities, num_clust):
+    """Take dict of clustering runs and consolidate with weighted k-means."""
+    # initialise empty dictionary for combined microclusters
+    runs_dict = {}
+
+    for k, run in facilities.items():
+        print(k)
+        centroids = run['cent']
+        assignments = run['asgn']
+
+        (uniq_mclst, count_mclst) = np.unique(assignments, return_counts = True)
+
+        # count the number of cells in each microcluster assignment
+        weights = np.zeros(centroids.shape[0], dtype=int)
+        weights[uniq_mclst] = count_mclst
+
+        assert not np.any(np.isnan(centroids)), "NaNs in centroids"
+        assert np.all(np.isfinite(centroids)), "Non-finite values in centroids"
+
+        # add pseudoweight of 1, so microclusters with no cells assigned behave --- should drop these
+        kmeans_weight = KMeans(n_clusters=num_clust, max_iter=1000).fit(centroids, sample_weight=weights+1) 
+        macroclusters = kmeans_weight.labels_
+        macrocentroids = kmeans_weight.cluster_centers_
+
+        # update cell assignments in dictionary, remove the microcentroid centers
+        runs_dict[k] = macroclusters[assignments]
+        
+    return runs_dict
 
 def _combine_clustering_runs_kmeans(runs_dict, num_clust):
     # combine clustering results using binary matrix method and k-means
