@@ -71,8 +71,8 @@ def consensus(
     # use microclusters to run different values of num_clust
     for K in num_clust:
         print(f"running k = {K} ...")
-        clusterings = _consolidate_microclusters(facilities, K)
-        result = _combine_clustering_runs_kmeans(clusterings, K)
+        runs_dict = _consolidate_microclusters(facilities, K)
+        result = _combine_clustering_runs_kmeans(runs_dict, K)
         _write_results_to_anndata(result, adata, num_clust=K)
     
     time_end = datetime.datetime.now()
@@ -106,30 +106,27 @@ def weighted_kmeans(centroids, assignments, num_clust):
     return macroclusters[assignments]
 
 
-def convert_clusterings_to_binary(clusterings, datatype='float32'):
+def make_consensus_binary(runs_dict, datatype='float32'):
     """
     Converts clustering results into binary matrix for K-means.
     Requires that the number of data points are equal across clusterings.
-    
-    Input: 
-    * `clusterings`: a dictionary
 
     This updated version works even if the number of unique clusters are not the same.
     """
-    def return_data_length_if_equal(clusterings):
-        data_lengths = [len(x) for x in clusterings.values()]
+    def return_data_length_if_equal(runs_dict):
+        data_lengths = [len(x) for x in runs_dict.values()]
         assert data_lengths.count(data_lengths[0]) == len(data_lengths), "data vectors different lengths"
         return data_lengths[0]
 
-    def return_max_clustid(clusterings):
-        maximum_values = [np.max(x) for x in clusterings.values()]
+    def return_max_clustid(runs_dict):
+        maximum_values = [np.max(x) for x in runs_dict.values()]
         return np.max(maximum_values) + 1
 
     # initialise binary matrix, after running some checks
-    n_cells = return_data_length_if_equal(clusterings)
-    n_clust = return_max_clustid(clusterings)
+    n_cells = return_data_length_if_equal(runs_dict)
+    n_clust = return_max_clustid(runs_dict)
     B = np.zeros((n_cells, 0), dtype=datatype)
-    results = list(clusterings.values())
+    results = list(runs_dict.values())
 
     # fill in the binary matrix
     for i in range(0, len(results)):
@@ -149,12 +146,12 @@ def convert_clusterings_to_binary(clusterings, datatype='float32'):
     return B
 
 
-def _consolidate_microclusters(clusterings, num_clust):
+def _consolidate_microclusters(runs_dict, num_clust):
     # take dict of clustering runs and consolidate with weighted k-means
-    return {k: weighted_kmeans(run['cent'], run['asgn'], num_clust) for k, run in clusterings.items()}
+    return {k: weighted_kmeans(run['cent'], run['asgn'], num_clust) for k, run in runs_dict.items()}
 
-def _combine_clustering_runs_kmeans(clusterings, num_clust):
+def _combine_clustering_runs_kmeans(runs_dict, num_clust):
     # combine clustering results using binary matrix method and k-means
-    consensus_matrix = convert_clusterings_to_binary(clusterings)
+    consensus_matrix = make_consensus_binary(runs_dict)
     kmeans_macro = KMeans(n_clusters=num_clust, max_iter=10_000).fit(consensus_matrix)
     return pd.Categorical(kmeans_macro.labels_)
