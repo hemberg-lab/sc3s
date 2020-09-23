@@ -42,6 +42,7 @@ def consensus(
         batch = stream
         print(f"Size of k-means batch reduced to {batch}")
 
+    # record start time and print to console
     time_start = datetime.datetime.now()
     print(f"""
     ======================================================================
@@ -60,7 +61,6 @@ def consensus(
     facilities = {}
 
     # generate microclusters
-    #for i in range(0, len(lowrankrange)):
     runs = _spectral(adata.X, k = n_facility,
                         d_range = lowrankrange,
                         stream = stream, batch = batch,
@@ -72,9 +72,10 @@ def consensus(
     for K in num_clust:
         print(f"running k = {K} ...")
         runs_dict = _consolidate_microclusters(facilities, K)
-        result = _combine_clustering_runs_kmeans(runs_dict, K)
+        result = _cluster_binary_consensus(runs_dict, K)
         _write_results_to_anndata(result, adata, num_clust=K)
     
+    # record end time and print to console
     time_end = datetime.datetime.now()
     runtime = datetime.datetime.now() - time_start
     print(f"""
@@ -85,7 +86,7 @@ def consensus(
     ======================================================================
     """)
 
-def make_consensus_binary(runs_dict, datatype='float32'):
+def _make_binary_consensus(runs_dict, datatype='float32'):
     """
     Converts clustering results into binary matrix for K-means.
     Requires that the number of data points are equal across clusterings.
@@ -154,8 +155,8 @@ def _consolidate_microclusters(facilities, num_clust):
         
     return runs_dict
 
-def _combine_clustering_runs_kmeans(runs_dict, num_clust):
+def _cluster_binary_consensus(runs_dict, num_clust):
     # combine clustering results using binary matrix method and k-means
-    consensus_matrix = make_consensus_binary(runs_dict)
+    consensus_matrix = _make_binary_consensus(runs_dict)
     kmeans_macro = KMeans(n_clusters=num_clust, max_iter=10_000).fit(consensus_matrix)
     return pd.Categorical(kmeans_macro.labels_)
