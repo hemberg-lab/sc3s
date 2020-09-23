@@ -1,6 +1,7 @@
 import scanpy as sc
 import pandas as pd
 import numpy as np
+from ._misc import _parse_int_list
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
 
@@ -17,6 +18,7 @@ def _spectral_old(data,
     d_range = _parse_int_list(d_range)
 
     # construct kernel affinity matrix
+    print("calculating similarity kernel...\n")
     W = cosine_similarity(data)
 
     # calculate normalised Laplacian
@@ -26,6 +28,7 @@ def _spectral_old(data,
     L = I - np.dot(D_sqrt, np.dot(W, D_sqrt))
 
     # perform eigendecomposition
+    print("performing eigendecomposition...\n")
     vals, vecs = np.linalg.eig(W)
 
     # k-means across different values of d
