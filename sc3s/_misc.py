@@ -44,6 +44,9 @@ def _write_results_to_anndata(result, adata, num_clust='result', prefix='sc3s_')
 
     Unit test whether this adds propwerly, if there is already something with the same name, or not.
     """
+    assert isinstance(result, (np.ndarray, list, pd.Categorical))
+    assert len(result) == adata.obs.shape[0]
+
     adata.obs = adata.obs.drop(prefix + str(num_clust), axis=1, errors='ignore')
     adata.obs.insert(len(adata.obs.columns), prefix + str(num_clust), result, allow_duplicates=False)
 

@@ -31,37 +31,42 @@ def consensus_old(
     for K in num_clust:
         print(f"running k = {K} ...")
 
-        # empty dictionary to hold the clustering results
-        runs_dict = _spectral_old(adata.X, k=K, d_range=lowrankrange, 
+        # execute spectral clustering across different d values
+        runs = _spectral_old(adata.X, k=K, d_range=lowrankrange, 
             n_runs=n_runs, svd=svd, return_centers=False)
     
+        # extract the assignments as array form
+        asgn_dict = {k: v['asgn'] for k, v in runs.items()}
+
         # perform the consensus clustering
-        runs_dict = {k: v['asgn'] for k, v in runs_dict.items()}
-        result = _cluster_contingency_consensus(runs_dict, K)
+        consensus_matrix = _make_contingency_consensus(asgn_dict)
+        result = _cluster_contingency_consensus(consensus_matrix, K)
+
+        # write results into adata.obs dataframe
         _write_results_to_anndata(result, adata, num_clust=K, prefix='sc3ori_')
 
     runtime = datetime.datetime.now() - time_start
     print("total runtime:", str(runtime))
 
-def _cluster_contingency_consensus(runs_dict, num_clust):
-    """
-    Perform hierarchical clustering on a dictionary containing results for individual runs.
-    """
-    # convert to contingency-based consensus, then does hierarchical clustering
-    consensus_matrix = _make_contingency_consensus(runs_dict)
-    hclust = AgglomerativeClustering(n_clusters=num_clust, linkage='complete').fit(consensus_matrix)
-    return pd.Categorical(hclust.labels_)
 
-
-def _make_contingency_consensus(runs_dict):
+def _make_contingency_consensus(asgn_dict):
     """
     Convert dictionary containing results for individual runs into a contingency matrix.
     """
-    X = np.array([x for x in runs_dict.values()]).T   # row: cell, col: clustering run
-    print(X)
-    print(X.shape)
+    # check if assignments are correctly structured
+    for x in asgn_dict.values():
+        assert isinstance(x, np.ndarray) 
+
+    X = np.array([x for x in asgn_dict.values()]).T   # row: cell, col: clustering run
     C = np.zeros((X.shape[0], X.shape[0]))
     for i in np.arange(0, X.shape[0]):
         C[i,] = np.sum(X[i,:] == X, axis=1) / X.shape[1]
     assert np.allclose(C, C.T), "contingency matrix not symmetrical"
     return C
+
+def _cluster_contingency_consensus(consensus_matrix, num_clust):
+    """
+    Perform hierarchical clustering on a dictionary containing results for individual runs.
+    """
+    hclust = AgglomerativeClustering(n_clusters=num_clust, linkage='complete').fit(consensus_matrix)
+    return pd.Categorical(hclust.labels_)

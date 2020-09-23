@@ -57,22 +57,25 @@ def consensus(
     START at {time_start.strftime("%Y-%m-%d %H:%M:%S")}
     """)
 
-    # empty dictionary to hold the microclusters
-    facilities = {}
+    # execute spectral clustering across different d values
+    facilities = _spectral(adata.X, k = n_facility,
+        d_range = lowrankrange,
+        stream = stream, batch = batch,
+        svd = svd, n_runs = n_runs, return_centers=True,
+        randomcellorder = randomcellorder)
 
-    # generate microclusters
-    runs = _spectral(adata.X, k = n_facility,
-                        d_range = lowrankrange,
-                        stream = stream, batch = batch,
-                        svd = svd, n_runs = n_runs,
-                        randomcellorder = randomcellorder)
-    facilities.update(runs)
-
-    # use microclusters to run different values of num_clust
     for K in num_clust:
         print(f"running k = {K} ...")
-        runs_dict = _consolidate_microclusters(facilities, K)
-        result = _cluster_binary_consensus(runs_dict, K)
+
+        # cluster facilities into macroclusters
+        # also extracts the assignments as array form
+        asgn_dict = _cluster_facilities(facilities, K)
+
+        # perform the consensus clustering
+        consensus_matrix = _make_binary_consensus(asgn_dict)
+        result = _cluster_binary_consensus(consensus_matrix, K)
+
+        # write results into adata.obs dataframe
         _write_results_to_anndata(result, adata, num_clust=K)
     
     # record end time and print to console
@@ -86,27 +89,66 @@ def consensus(
     ======================================================================
     """)
 
-def _make_binary_consensus(runs_dict, datatype='float32'):
+def _cluster_facilities(facilities, num_clust):
+    """Take dict of clustering runs and consolidate with weighted k-means."""
+    # check if facilities dictionary is correctly structured
+    assert isinstance(facilities, dict)
+    for k, run in facilities.items():
+        assert run.get('cent') is not None
+        assert run.get('asgn') is not None
+
+    # initialise empty dictionary for combined microclusters
+    asgn_dict = {}
+
+    for k, run in facilities.items():
+        centroids = run['cent']
+        assignments = run['asgn']
+
+        (uniq_mclst, count_mclst) = np.unique(assignments, return_counts = True)
+
+        # count the number of cells in each microcluster assignment
+        weights = np.zeros(centroids.shape[0], dtype=int)
+        weights[uniq_mclst] = count_mclst
+
+        assert not np.any(np.isnan(centroids)), "NaNs in centroids"
+        assert np.all(np.isfinite(centroids)), "Non-finite values in centroids"
+
+        # add pseudoweight of 1, so microclusters with no cells assigned behave --- should drop these
+        kmeans_weight = KMeans(n_clusters=num_clust, max_iter=1000).fit(centroids, sample_weight=weights+1) 
+        macroclusters = kmeans_weight.labels_
+        macrocentroids = kmeans_weight.cluster_centers_
+
+        # update cell assignments in dictionary, remove the microcentroid centers
+        asgn_dict[k] = macroclusters[assignments]
+        
+    return asgn_dict
+
+
+def _make_binary_consensus(asgn_dict, datatype='float32'):
     """
     Converts clustering results into binary matrix for K-means.
     Requires that the number of data points are equal across clusterings.
 
     This updated version works even if the number of unique clusters are not the same.
     """
-    def return_data_length_if_equal(runs_dict):
-        data_lengths = [len(x) for x in runs_dict.values()]
+    # check if assignments are correctly structured
+    for x in asgn_dict.values():
+        assert isinstance(x, np.ndarray)
+
+    def return_data_length_if_equal(asgn_dict):
+        data_lengths = [len(x) for x in asgn_dict.values()]
         assert data_lengths.count(data_lengths[0]) == len(data_lengths), "data vectors different lengths"
         return data_lengths[0]
 
-    def return_max_clustid(runs_dict):
-        maximum_values = [np.max(x) for x in runs_dict.values()]
+    def return_max_clustid(asgn_dict):
+        maximum_values = [np.max(x) for x in asgn_dict.values()]
         return np.max(maximum_values) + 1
 
     # initialise binary matrix, after running some checks
-    n_cells = return_data_length_if_equal(runs_dict)
-    n_clust = return_max_clustid(runs_dict)
+    n_cells = return_data_length_if_equal(asgn_dict)
+    n_clust = return_max_clustid(asgn_dict)
     B = np.zeros((n_cells, 0), dtype=datatype)
-    results = list(runs_dict.values())
+    results = list(asgn_dict.values())
 
     # fill in the binary matrix
     for i in range(0, len(results)):
@@ -126,37 +168,6 @@ def _make_binary_consensus(runs_dict, datatype='float32'):
     return B
 
 
-def _consolidate_microclusters(facilities, num_clust):
-    """Take dict of clustering runs and consolidate with weighted k-means."""
-    # initialise empty dictionary for combined microclusters
-    runs_dict = {}
-
-    for k, run in facilities.items():
-        print(k)
-        centroids = run['cent']
-        assignments = run['asgn']
-
-        (uniq_mclst, count_mclst) = np.unique(assignments, return_counts = True)
-
-        # count the number of cells in each microcluster assignment
-        weights = np.zeros(centroids.shape[0], dtype=int)
-        weights[uniq_mclst] = count_mclst
-
-        assert not np.any(np.isnan(centroids)), "NaNs in centroids"
-        assert np.all(np.isfinite(centroids)), "Non-finite values in centroids"
-
-        # add pseudoweight of 1, so microclusters with no cells assigned behave --- should drop these
-        kmeans_weight = KMeans(n_clusters=num_clust, max_iter=1000).fit(centroids, sample_weight=weights+1) 
-        macroclusters = kmeans_weight.labels_
-        macrocentroids = kmeans_weight.cluster_centers_
-
-        # update cell assignments in dictionary, remove the microcentroid centers
-        runs_dict[k] = macroclusters[assignments]
-        
-    return runs_dict
-
-def _cluster_binary_consensus(runs_dict, num_clust):
-    # combine clustering results using binary matrix method and k-means
-    consensus_matrix = _make_binary_consensus(runs_dict)
+def _cluster_binary_consensus(consensus_matrix, num_clust):
     kmeans_macro = KMeans(n_clusters=num_clust, max_iter=10_000).fit(consensus_matrix)
     return pd.Categorical(kmeans_macro.labels_)

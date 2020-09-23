@@ -13,6 +13,7 @@ def _spectral(data,
               n_runs = 5,
               svd = "sklearn",
               randomcellorder = True,
+              return_centers = True,
               restart_chance = 0.05):
     """
     Cluster the cells into microclusters. k should be set to a relatively large number, maybe a 
@@ -91,16 +92,17 @@ def _spectral(data,
                 runs[(t,d)] = _rotate_centroids(runs[(t,d)], V_d, Vold_d)
                 runs[(t,d)] = _assign(runs[(t,d)], cell_projections, k, lut, i, j, batch, restart_chance)
 
-        # runs = {t: _rotate_centroids(run, V, Vold) for t, run in runs.items()}
-
-        # # assign new cells to centroids, centroids are reinitialised by random chance
-        # runs = {t: _assign(run, cell_projections, k, lut, i, j, batch, restart_chance) for t, run in runs.items()}
-        
+        # update index for next stream
         i = j
         Vold = V
 
     # unrandomise the ordering
     runs = {k: _reorder_cells(run, lut) for k, run in runs.items()}
+
+    # return only the cell assignments if requested
+    if return_centers is False:
+        runs = {k: v['asgn'] for k, v in runs_dict.items()}
+
     print(f"...done!\n")
 
     return runs
