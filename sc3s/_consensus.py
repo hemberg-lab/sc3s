@@ -9,7 +9,6 @@ from sklearn.cluster import KMeans
 def consensus(
     adata,
     num_clust = [4],
-    n_facility = 100,
     lowrankrange = range(10, 20),
     stream = 1000,
     batch = 100,
@@ -25,7 +24,6 @@ def consensus(
         error_msg = "lowrankrange must be integer > 1, or a non-empty list/range of such!")
 
     assert isinstance(adata, ad.AnnData)
-    assert isinstance(n_facility, int) and n_facility > max(num_clust)
     assert isinstance(stream, int)
     assert isinstance(batch, int)
     assert isinstance(n_runs, int)
@@ -56,6 +54,9 @@ def consensus(
 
     START at {time_start.strftime("%Y-%m-%d %H:%M:%S")}
     """)
+
+    # calculate number of microclusters
+    n_facility = int(15 * np.log(n_cells))
 
     # execute spectral clustering across different d values
     facilities = _spectral(adata.X, k = n_facility,
