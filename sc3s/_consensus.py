@@ -56,7 +56,8 @@ def consensus(
     """)
 
     # calculate number of microclusters
-    n_facility = int(15 * np.log(n_cells))
+    n_facility = int(max(num_clust) * 8)
+    assert n_facility <= stream
 
     # execute spectral clustering across different d values
     facilities = _spectral(adata.X, k = n_facility,
