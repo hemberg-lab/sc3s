@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import anndata as ad
 from sklearn.cluster import KMeans
+import warnings
 
 def consensus(
     adata,
@@ -29,6 +30,7 @@ def consensus(
     assert isinstance(n_runs, int)
     assert isinstance(randomcellorder, bool)
     assert 0 <= restart_chance <= 1
+    assert stream > max(num_clust), "stream size must be at least twice the (max) number of clusters"
 
     # shrink stream and batch parameters if too large
     n_cells, n_genes = adata.X.shape
@@ -56,8 +58,18 @@ def consensus(
     """)
 
     # calculate number of microclusters
+    # as a function of stream size
+    # to work well, stream size >> 10 * max(num_clust)
     n_facility = int(max(num_clust) * 8)
-    assert n_facility <= stream
+    min_strm_size = n_facility * 10
+    
+    if stream < min_strm_size:
+        warnings.warn("stream size is smaller than the recommended number")
+    try:
+        assert stream > n_facility
+    except:
+        warnings.warn("n_facility is recalculated to be half the stream size")
+        n_facility = int(stream * 0.5)
 
     # execute spectral clustering across different d values
     facilities = _spectral(adata.X, k = n_facility,
