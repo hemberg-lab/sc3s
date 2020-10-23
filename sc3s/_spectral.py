@@ -53,7 +53,7 @@ def _spectral(data,
 
     # initialise structures to be updated during training
     max_d = max(d_range)
-    sketch_matrix = np.empty((max_d, n_genes)) # learned embedding
+    sketch_matrix = None # np.empty((max_d, n_genes)) # learned embedding
     gene_sum = np.zeros(n_genes) # to calculate dataset centroid
     Vold = None # to skip initial rotation
 
@@ -110,7 +110,6 @@ def _spectral(data,
 def _embed(cells, sketch_matrix, gene_sum, max_d, svd = "sklearn"):
     assert len(gene_sum.shape) == 1
     assert cells.shape[1] == gene_sum.shape[0], "not the same number of genes/features"
-    assert sketch_matrix.shape[0] == max_d
 
     stream_size = cells.shape[0]
 
@@ -122,27 +121,35 @@ def _embed(cells, sketch_matrix, gene_sum, max_d, svd = "sklearn"):
 
     # approximate degree matrix (n_cell x n_cell)
     D = np.diag(np.dot(cells, dataset_centroid))
-    assert D.shape == (stream_size, stream_size), "degree matrix incorrect size"
 
     # approximated normalised Laplacian
     laplacian = np.dot(np.sqrt(D), cells)
 
-    # concatenate with previous sketch matrix and perform SVD
-    C = np.empty((max_d + stream_size, sketch_matrix.shape[1]))
-    C[:max_d] = sketch_matrix
-    C[max_d:] = laplacian
+    # concatenate with previous sketch matrix (if exists)
+    if sketch_matrix is not None:
+        C = np.empty((max_d + stream_size, sketch_matrix.shape[1]))
+        C[:max_d] = sketch_matrix
+        C[max_d:] = laplacian
+    else:
+        C = laplacian
+
+    assert not np.any(np.isnan(C)), "There are NaN entries in C"
+    assert np.all(np.isfinite(C)), "There are Inf entries in C"
 
     # choose svd algorithm (maybe use a switch case)
     # https://jaxenter.com/implement-switch-case-statement-python-138315.html
     U, s, V = _svd_sklearn(C, max_d)
-    
+
+    # extract cell projections (n_cell x d column)
+    if sketch_matrix is not None:
+        cell_projections = U[max_d:, ]
+    else:
+        cell_projections = U
+
     # update sketch matrix
     s2 = s**2
     s_norm = np.sqrt(s2 - s2[-1])
     sketch_matrix = np.dot(np.diag(s_norm), V)
-
-    # extract cell projections (n_cell x d column)
-    cell_projections = U[max_d:, ]
 
     return sketch_matrix, V, cell_projections, gene_sum
 
