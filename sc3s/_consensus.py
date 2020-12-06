@@ -6,7 +6,7 @@ from ._cluster import run_trials_miniBatchKMeans
 from ._cluster import combine_facilities
 from ._cluster import convert_dict_into_binary_matrix, cluster_binary_matrix
 
-from ._misc import _format_integer_list_to_iterable, _write_results_to_anndata
+from ._misc import _check_and_format_integer_list, _check_integer_single
 
 def consensus(
     adata,
@@ -27,25 +27,24 @@ def consensus(
     n_cells = X_pca.shape[0]
 
     # check and formats n_clusters into in a list format, using default values if unprovided
-    if n_clusters is None:
-        raise Exception("Please specify value for n_clusters.")
-    else:
-        n_clusters = _format_integer_list_to_iterable(n_clusters, var_name = "n_clusters")
-        for i in n_clusters:
-            if i >= n_cells:
-                raise Exception("Values for n_clusters must be fewer than number of cells.")
+    n_clusters = _check_and_format_integer_list(
+        n_clusters, 
+        min_val = 2, 
+        max_val = n_cells,
+        var_name = 'n_clusters'
+    )
 
     # check d_range
-    if d_range is None:
-        d_range = [X_pca.shape[1]]
-    else:
-        d_range = _format_integer_list_to_iterable(d_range)
-        # make sure it's less than X_pca
-        for d in d_range:
-            assert d <= X_pca.shape[1],  f"d_range values cannot exceed number of PC coordinates: {X_pca.shape[1]}"
+    d_range = _check_and_format_integer_list(
+        d_range,
+        min_val = 2,
+        max_val = X_pca.shape[1],
+        var_name = 'd_range'
+    )
 
     # check n_runs
-    assert isinstance(n_runs, int) and n_runs > 1, "n_runs must be positive integer value."
+    #assert isinstance(n_runs, int) and n_runs > 1, "n_runs must be positive integer value."
+    n_runs = _check_integer_single(n_runs, min_val=1, var_name="n_runs")
 
     # check batch_size
     if isinstance(batch_size, int):

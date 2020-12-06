@@ -1,4 +1,5 @@
 from ._misc import rk, rv
+from ._misc import _check_and_format_integer_list
 
 def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, random_state):
     """
@@ -8,7 +9,16 @@ def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, ra
     import itertools
     from sklearn.cluster import MiniBatchKMeans
 
-    # assert max d is less than data
+    # n_clusters must be single integer
+
+    d_range = _check_and_format_integer_list(
+        d_range,
+        min_val = 2,
+        max_val = data.shape[1],
+        var_name = 'd_range'
+    )
+
+    assert isinstance(n_runs, int) and n_runs > 1, "n_runs must be positive integer value."
 
     trials_dict = {}
 
