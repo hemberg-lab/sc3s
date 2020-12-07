@@ -9,8 +9,9 @@ def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, ra
     import itertools
     from sklearn.cluster import MiniBatchKMeans
 
-    # n_clusters must be single integer
+    # n_clusters must be single integer TO DO!
 
+    # check d_range
     d_range = _check_and_format_integer_list(
         d_range,
         min_val = 2,
@@ -18,10 +19,16 @@ def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, ra
         var_name = 'd_range'
     )
 
+    # check n_runs
     assert isinstance(n_runs, int) and n_runs > 1, "n_runs must be positive integer value."
 
-    trials_dict = {}
+    # check batch_size TO DO!
 
+    # check random state
+    from sklearn.utils import check_random_state
+    random_state = check_random_state(random_state)
+
+    trials_dict = {}
     for d, i in itertools.product(d_range, range(1, n_runs + 1)):
         kmeans = MiniBatchKMeans(
             n_clusters = n_clusters,
@@ -50,6 +57,16 @@ def combine_facilities(dict_object, K, n_facility, batch_size, random_state):
     for key, value in dict_object.items():
         assert isinstance(key, rk)
         assert isinstance(value, rv)
+
+    # check K is an integer TO DO!
+
+    # check n_facility is a number TO DO!
+
+    # check batch_size TO DO!
+
+    # check random state
+    from sklearn.utils import check_random_state
+    random_state = check_random_state(random_state)
 
     dict_object_combined = {}
 
@@ -136,8 +153,17 @@ def cluster_binary_matrix(binary_consensus_matrix, n_clusters, batch_size, rando
     Cluster the consensus binary matrix.
     """
 
-    from sklearn.cluster import MiniBatchKMeans
+    # check binary consensus matrix TO DO!
 
+    # check n_clusters TO DO!
+
+    # check batch_size TO DO!
+
+    # check random state
+    from sklearn.utils import check_random_state
+    random_state = check_random_state(random_state)
+
+    from sklearn.cluster import MiniBatchKMeans
     kmeans = MiniBatchKMeans(
         n_clusters = n_clusters,
         batch_size = batch_size,

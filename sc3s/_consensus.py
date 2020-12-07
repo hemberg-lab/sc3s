@@ -54,7 +54,7 @@ def consensus(
 
 
     # check random state
-
+    random_state = check_random_state(random_state)
 
     # calculate the number of facilities
     if n_facility is None:
