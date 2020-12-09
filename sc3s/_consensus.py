@@ -75,6 +75,9 @@ def consensus(
         random_state = random_state
     )
 
+    # write the individual trials into AnnData object
+    adata.uns['sc3s_trials'] = trials_dict
+
     # run different number of clusters
     for K in n_clusters:
         consensus_dict = combine_facilities(
