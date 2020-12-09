@@ -5,7 +5,13 @@ from collections import namedtuple
 rk = namedtuple('trial_params', 'd, i')
 
 # value
-rv = namedtuple('trial_params_value', 'facility, labels, inertia')
+def rv(**kwargs):
+    """
+    Basically a nice wrapper around kwargs to avoid having to type out dictionary syntax.
+
+    Returns dictionary object.
+    """
+    return kwargs
 
 def _check_and_format_integer_list(num_list, min_val=None, max_val=None, var_name="variable", return_as_list = True):
     """
