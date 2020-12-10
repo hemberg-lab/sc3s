@@ -59,7 +59,7 @@ def consensus(
     # calculate the number of facilities
     if n_facility is None:
         if max(n_clusters) * 10 <= n_cells: 
-            n_facility = max(n_clusters) * 100
+            n_facility = max(n_clusters) * 10
         else:
             warnings.warn(f"There isn't many cells, n_facility set to maximum n_clusters value: {max(n_clusters)}")
             n_facility = max(n_clusters)
