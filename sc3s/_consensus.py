@@ -4,7 +4,7 @@ from sklearn.utils import check_random_state
 
 from ._cluster import run_trials_miniBatchKMeans
 from ._cluster import combine_facilities
-from ._cluster import convert_dict_into_binary_matrix, cluster_binary_matrix
+from ._cluster import convert_dict_into_binary_matrix, cluster_consensus_matrix
 
 from ._misc import _check_and_format_integer_list, _check_integer_single
 
@@ -94,8 +94,8 @@ def consensus(
             true_n_cells = n_cells
         )
 
-        cell_labels = cluster_binary_matrix(
-            binary_consensus_matrix = B,
+        cell_labels = cluster_consensus_matrix(
+            consensus_matrix = B,
             n_clusters = K,
             batch_size = batch_size,
             random_state = random_state

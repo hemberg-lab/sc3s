@@ -158,9 +158,11 @@ def convert_dict_into_binary_matrix(dict_object, true_n_clusters, true_n_cells):
     return B
 
 
-def cluster_binary_matrix(binary_consensus_matrix, n_clusters, batch_size, random_state):
+def cluster_consensus_matrix(consensus_matrix, n_clusters, batch_size, random_state):
     """
-    Cluster the consensus binary matrix.
+    Cluster the consensus binary matrix using miniBatchKmeans.
+
+    Rows of the matrix should correspond to cells.
     """
 
     # check binary consensus matrix TO DO!
@@ -179,6 +181,6 @@ def cluster_binary_matrix(binary_consensus_matrix, n_clusters, batch_size, rando
         batch_size = batch_size,
         random_state = random_state
     )
-    kmeans.fit(binary_consensus_matrix)
+    kmeans.fit(consensus_matrix)
 
     return kmeans.labels_
