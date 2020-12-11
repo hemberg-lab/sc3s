@@ -1,5 +1,5 @@
 from ._misc import rk, rv
-from ._misc import _check_and_format_integer_list, _check_integer_single
+from ._misc import _check_and_format_integer_list, _check_integer_single, _check_dict_object
 
 def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, random_state):
     """
@@ -128,17 +128,10 @@ def convert_dict_into_binary_matrix(dict_object, true_n_clusters, true_n_cells):
     import numpy as np
     import logging
 
-    # check the number of cells
-    n_cells_list = [len(x['labels']) for x in dict_object.values()]
-    assert n_cells_list.count(true_n_cells) == len(n_cells_list), "number of cells not consistent"
-    n_cells = true_n_cells
+    n_clusters, n_cells = true_n_clusters, true_n_cells
 
-    # check the number of clusters
-    # there is an edge case for this, which is if the kth cluster is not assigned any cells
-    # will fix if error occurs, otherwise can just count that at least 75% of runs is correct?
-    n_clusters_list = [np.max(x['labels']) + 1 for x in dict_object.values()]
-    assert n_clusters_list.count(true_n_clusters) == len(n_clusters_list), "number of cells not consistent"
-    n_clusters =  true_n_clusters
+    # check dict_object has correct number of clusters and cells for every run
+    dict_object = _check_dict_object(dict_object, true_n_clusters, true_n_cells)
 
     # initialise empty B array with the correct shape
     B = np.zeros((n_cells, 0), dtype=int)

@@ -1,4 +1,4 @@
-from ._misc import _check_integer_single
+from ._misc import _check_integer_single, _check_dict_object
 
 def convert_dict_into_contigency_matrix(dict_object, true_n_clusters, true_n_cells):
     """
@@ -9,17 +9,8 @@ def convert_dict_into_contigency_matrix(dict_object, true_n_clusters, true_n_cel
 
     n_trials = len(dict_object.values())
 
-    # check the number of cells
-    n_cells_list = [len(x['labels']) for x in dict_object.values()]
-    assert n_cells_list.count(true_n_cells) == len(n_cells_list), "number of cells not consistent"
-    n_cells = true_n_cells
-
-    # check the number of clusters
-    # there is an edge case for this, which is if the kth cluster is not assigned any cells
-    # will fix if error occurs, otherwise can just count that at least 75% of runs is correct?
-    n_clusters_list = [np.max(x['labels']) + 1 for x in dict_object.values()]
-    assert n_clusters_list.count(true_n_clusters) > 0.9 * len(n_clusters_list), "number of cells not consistent"
-    n_clusters =  true_n_clusters
+    # check dict_object has correct number of clusters and cells for every run
+    dict_object = _check_dict_object(dict_object, true_n_clusters, true_n_cells)
 
     # initialise contingeny matrix
     C = np.zeros((n_cells, n_cells))

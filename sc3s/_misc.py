@@ -77,3 +77,37 @@ def _check_integer_single(num, min_val=None, max_val=None, var_name="variable"):
             raise Exception(f"{var_name} must be less than {max_val}.")
 
     return num
+
+def _check_dict_object(dict_object, true_n_clusters, true_n_cells):
+    """
+    Check that the runs in the dict_object contain the specified number of n_clusters and n_cells.
+    """
+
+    # check n_clusters and n_cells are integers
+    true_n_clusters = _check_integer_single(true_n_clusters)
+    true_n_cells    = _check_integer_single(true_n_cells)
+
+    # check the number of cells
+    n_cells_list = [len(x['labels']) for x in dict_object.values()]
+    assert n_cells_list.count(true_n_cells) == len(n_cells_list), "number of cells not consistent"
+    n_cells = true_n_cells
+
+    # check the number of clusters
+    n_clusters_list = [x['facility'].shape[0] for x in dict_object.values()]
+    assert n_clusters_list.count(true_n_clusters) == len(n_clusters_list), "number of cells not consistent"
+    n_clusters =  true_n_clusters
+
+    return dict_object
+
+
+    # check the number of cells
+    # n_cells_list = [len(x['labels']) for x in dict_object.values()]
+    # assert n_cells_list.count(true_n_cells) == len(n_cells_list), "number of cells not consistent"
+    # n_cells = true_n_cells
+
+    # # check the number of clusters
+    # # there is an edge case for this, which is if the kth cluster is not assigned any cells
+    # # will fix if error occurs, otherwise can just count that at least 75% of runs is correct?
+    # n_clusters_list = [np.max(x['labels']) + 1 for x in dict_object.values()]
+    # assert n_clusters_list.count(true_n_clusters) == len(n_clusters_list), "number of cells not consistent"
+    # n_clusters =  true_n_clusters
