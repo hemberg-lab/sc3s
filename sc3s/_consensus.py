@@ -43,7 +43,6 @@ def consensus(
     )
 
     # check n_runs
-    #assert isinstance(n_runs, int) and n_runs > 1, "n_runs must be positive integer value."
     n_runs = _check_integer_single(n_runs, min_val=1, var_name="n_runs")
 
     # check batch_size
@@ -102,7 +101,6 @@ def consensus(
         )
 
         # write results into AnnData object
-        #_write_results_to_anndata(result, adata, n_clusters=K, prefix='sc3s')
         adata.obs[f'sc3s_{K}'] = cell_labels
         adata.obs[f'sc3s_{K}'] = adata.obs[f'sc3s_{K}'].astype('category')
 

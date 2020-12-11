@@ -1,5 +1,5 @@
 from ._misc import rk, rv
-from ._misc import _check_and_format_integer_list
+from ._misc import _check_and_format_integer_list, _check_integer_single
 
 def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, random_state):
     """
@@ -9,7 +9,16 @@ def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, ra
     import itertools
     from sklearn.cluster import MiniBatchKMeans
 
-    # n_clusters must be single integer TO DO!
+    # check that consensus matrix has no NaN, infinity values
+    from sklearn.utils import check_array
+    data = check_array(data)
+
+    # check n_clusters
+    n_clusters = _check_integer_single(
+        n_clusters,
+        min_val = 2,
+        var_name = 'n_clusters'
+    )
 
     # check d_range
     d_range = _check_and_format_integer_list(
@@ -22,7 +31,13 @@ def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, ra
     # check n_runs
     assert isinstance(n_runs, int) and n_runs > 1, "n_runs must be positive integer value."
 
-    # check batch_size TO DO!
+    # check batch_size
+    batch_size = _check_integer_single(
+        batch_size,
+        min_val = 10,
+        max_val = data.shape[0],
+        var_name = 'batch_size'
+    )
 
     # check random state
     from sklearn.utils import check_random_state
@@ -64,11 +79,10 @@ def combine_facilities(dict_object, K, n_facility, batch_size, random_state):
         assert value['facility'] is not None
         assert value['labels'] is not None
 
-    # check K is an integer TO DO!
-
-    # check n_facility is a number TO DO!
-
-    # check batch_size TO DO!
+    # check arguments are formated as integers (limits not trivial to do)
+    K = _check_integer_single(K, var_name = 'K')
+    n_facility = _check_integer_single(n_facility, var_name = 'n_facility')
+    batch_size = _check_integer_single(batch_size, var_name = 'batch_size')
 
     # check random state
     from sklearn.utils import check_random_state
@@ -82,8 +96,6 @@ def combine_facilities(dict_object, K, n_facility, batch_size, random_state):
         labels = value['labels']
 
         # count the number of cells assigned to each facility
-        # facilities with no cells are dropped
-        #indices, weights = np.unique(labels, return_counts = True)
         weights = list(map(
             lambda cluster_no: np.count_nonzero(labels == cluster_no), 
             range(0, n_facility)
@@ -160,16 +172,28 @@ def convert_dict_into_binary_matrix(dict_object, true_n_clusters, true_n_cells):
 
 def cluster_consensus_matrix(consensus_matrix, n_clusters, batch_size, random_state):
     """
-    Cluster the consensus binary matrix using miniBatchKmeans.
-
-    Rows of the matrix should correspond to cells.
+    Cluster the consensus binary matrix using miniBatchKmeans. Rows of matrix should be observations.
     """
 
-    # check binary consensus matrix TO DO!
+    # check that consensus matrix has no NaN, infinity values
+    from sklearn.utils import check_array
+    consensus_matrix = check_array(consensus_matrix)
 
-    # check n_clusters TO DO!
+    # check n_clusters
+    n_clusters = _check_integer_single(
+        n_clusters,
+        min_val = 2,
+        max_val = consensus_matrix.shape[0],
+        var_name = 'n_clusters'
+    )
 
-    # check batch_size TO DO!
+    # check batch_size
+    batch_size = _check_integer_single(
+        batch_size,
+        min_val = 10,
+        max_val = consensus_matrix.shape[0],
+        var_name = 'batch_size'
+    )
 
     # check random state
     from sklearn.utils import check_random_state

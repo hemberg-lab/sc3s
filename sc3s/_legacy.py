@@ -1,3 +1,5 @@
+from ._misc import _check_integer_single
+
 def convert_dict_into_contigency_matrix(dict_object, true_n_clusters, true_n_cells):
     """
     Convert clustering runs in a dictionary into a contingency consensus matrix.
@@ -38,8 +40,20 @@ def convert_dict_into_contigency_matrix(dict_object, true_n_clusters, true_n_cel
 
 def cluster_matrix_kmeans(consensus_matrix, n_clusters, random_state):
     """
-    Wrapper around scikit learn whole batch k means.
+    Wrapper around scikit learn whole batch k means. Rows of matrix should be observations.
     """
+
+    # check that consensus matrix has no NaN, infinity values
+    from sklearn.utils import check_array
+    consensus_matrix = check_array(consensus_matrix)
+
+    # check n_clusters
+    n_clusters = _check_integer_single(
+        n_clusters,
+        min_val = 2,
+        max_val = consensus_matrix.shape[0],
+        var_name = 'n_clusters'
+    )
 
     # check random state
     from sklearn.utils import check_random_state
@@ -53,8 +67,20 @@ def cluster_matrix_kmeans(consensus_matrix, n_clusters, random_state):
 
 def cluster_matrix_agglomerative(consensus_matrix, n_clusters):
     """
-    Wrapper around scikit learn agglomerative clustering.
+    Wrapper around scikit learn agglomerative clustering. Rows of matrix should be observations.
     """
+
+    # check that consensus matrix has no NaN, infinity values
+    from sklearn.utils import check_array
+    consensus_matrix = check_array(consensus_matrix)
+
+    # check n_clusters
+    n_clusters = _check_integer_single(
+        n_clusters,
+        min_val = 2,
+        max_val = consensus_matrix.shape[0],
+        var_name = 'n_clusters'
+    )
 
     from sklearn.cluster import AgglomerativeClustering
     agg_clust = AgglomerativeClustering(n_clusters=n_clusters)
