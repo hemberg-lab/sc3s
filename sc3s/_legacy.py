@@ -7,6 +7,7 @@ def convert_dict_into_contigency_matrix(dict_object, true_n_clusters, true_n_cel
     
     import numpy as np
 
+    n_clusters, n_cells = true_n_clusters, true_n_cells
     n_trials = len(dict_object.values())
 
     # check dict_object has correct number of clusters and cells for every run
