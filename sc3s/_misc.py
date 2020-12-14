@@ -89,12 +89,12 @@ def _check_dict_object(dict_object, true_n_clusters, true_n_cells):
 
     # check the number of cells
     n_cells_list = [len(x['labels']) for x in dict_object.values()]
-    assert n_cells_list.count(true_n_cells) == len(n_cells_list), "number of cells not consistent"
+    assert n_cells_list.count(true_n_cells) == len(n_cells_list), "number of cells is not consistent between trials"
     n_cells = true_n_cells
 
     # check the number of clusters
     n_clusters_list = [x['facility'].shape[0] for x in dict_object.values()]
-    assert n_clusters_list.count(true_n_clusters) == len(n_clusters_list), "number of cells not consistent"
+    assert n_clusters_list.count(true_n_clusters) == len(n_clusters_list), "number of clusters not consistent between trials"
     n_clusters =  true_n_clusters
 
     return dict_object
