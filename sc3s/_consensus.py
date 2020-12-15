@@ -1,4 +1,4 @@
-import warnings
+import logging
 import pandas
 from sklearn.utils import check_random_state
 
@@ -11,11 +11,14 @@ from ._misc import _check_and_format_integer_list, _check_integer_single
 def consensus(
     adata,
     n_clusters = [3, 5, 10],
-    n_facility = None,
     d_range = None,
     n_runs = 5,
+    n_facility = None,
+    multiplier_facility = None,
     batch_size = 100,
     random_state = None):
+
+    logging.basicConfig(level=logging.DEBUG)
 
     # check that AnnData object already has PCA coordinates
     try:
@@ -54,15 +57,27 @@ def consensus(
 
     # check random state
     random_state = check_random_state(random_state)
-
-    # calculate the number of facilities
-    if n_facility is None:
-        if max(n_clusters) * 10 <= n_cells: 
-            n_facility = max(n_clusters) * 10
-        else:
-            warnings.warn(f"There isn't many cells, n_facility set to maximum n_clusters value: {max(n_clusters)}")
-            n_facility = max(n_clusters)
-
+ 
+    # determine number of facilities to use
+    if n_facility is not None:
+        logging.info(f"n_facility set to {n_facility}, ignoring multiplier_facility parameter...")
+    else:
+        if multiplier_facility is None:
+            logging.info(f"multiplier_facility not set, using value of 5...")
+            multiplier_facility = 5
+        # calculate the number of facilities, if not provided
+        if max(n_clusters) * multiplier_facility <= n_cells:
+            n_facility = max(n_clusters) * multiplier_facility
+            logging.info(f"number of facilities calculated as {n_facility}")
+    
+    # if the number of facilities is too high, raise an error
+    # edge case: the sample has very few cells and user does not specify n_facility
+    n_facility = _check_integer_single(
+        n_facility, 
+        min_val = 2, 
+        max_val = n_cells,
+        var_name = 'n_facility'
+    )
 
     # run over many different trials
     trials_dict = run_trials_miniBatchKMeans(
