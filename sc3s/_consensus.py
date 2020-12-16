@@ -1,4 +1,3 @@
-import logging
 import pandas
 from sklearn.utils import check_random_state
 
@@ -7,6 +6,8 @@ from ._cluster import combine_facilities
 from ._cluster import convert_dict_into_binary_matrix, cluster_consensus_matrix
 
 from ._misc import _check_and_format_integer_list, _check_integer_single
+
+import logging
 
 def consensus(
     adata,
@@ -18,7 +19,7 @@ def consensus(
     batch_size = 100,
     random_state = None):
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     # check that AnnData object already has PCA coordinates
     try:
