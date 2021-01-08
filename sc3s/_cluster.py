@@ -29,7 +29,7 @@ def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, ra
     )
 
     # check n_runs
-    n_runs = _check_integer_single(n_runs, min_val=1, var_name="n_runs")
+    assert isinstance(n_runs, int) and n_runs > 1, "n_runs must be positive integer value."
 
     # check batch_size
     batch_size = _check_integer_single(
