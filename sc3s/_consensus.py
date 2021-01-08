@@ -65,7 +65,7 @@ def consensus(
     else:
         if multiplier_facility is None:
             logging.info(f"multiplier_facility not set, using value of 5...")
-            multiplier_facility = 5
+            multiplier_facility = 3
         # calculate the number of facilities, if not provided
         if max(n_clusters) * multiplier_facility <= n_cells:
             n_facility = max(n_clusters) * multiplier_facility
