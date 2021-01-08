@@ -119,5 +119,3 @@ def consensus(
         # write results into AnnData object
         adata.obs[f'sc3s_{K}'] = cell_labels
         adata.obs[f'sc3s_{K}'] = adata.obs[f'sc3s_{K}'].astype('category')
-
-    return adata
