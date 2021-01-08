@@ -55,7 +55,8 @@ def run_trials_miniBatchKMeans(data, n_clusters, d_range, n_runs, batch_size, ra
         kmeans.fit(data[:, :d])
 
         # add results into dictionary
-        trials_dict[rk(d, i)] = rv(
+        # trials_dict[rk(d, i)] = rv(  # NEED SCANPY TO IMPLEMENT SAVING
+        trials_dict[(d, i)] = rv(
             facility = kmeans.cluster_centers_,
             labels = kmeans.labels_,
             inertia = kmeans.inertia_
@@ -74,7 +75,7 @@ def combine_facilities(dict_object, K, n_facility, batch_size, random_state):
     # check that the dictionary object is formatted correctly
     assert isinstance(dict_object, dict)
     for key, value in dict_object.items():
-        assert isinstance(key, rk)
+        # assert isinstance(key, rk)  # NEED SCANPY TO IMPLEMENT SAVING
         assert isinstance(value, dict)
         assert value['facility'] is not None
         assert value['labels'] is not None
