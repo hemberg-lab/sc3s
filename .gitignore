@@ -1,7 +1,6 @@
 .*
 !.gitignore
+!.github
 *__pycache__*
 *egg-info
 tests/data/*
-build/*
-dist/*
