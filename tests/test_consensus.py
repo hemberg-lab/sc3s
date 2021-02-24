@@ -1,30 +1,32 @@
 import sc3s
-import pandas as pd
 import numpy as np
-import scanpy as sc
+import anndata as ad
 from sklearn.metrics import adjusted_rand_score
 
-rootdir = "tests/data/"
-adata = sc.read_h5ad(f"{rootdir}data.h5ad")
-
-# preprocessing to remove uninformative genes, and log transform
-sc.pp.filter_genes(adata, min_cells=50)
-sc.pp.log1p(adata)
-
-# perform PCA
-sc.tl.pca(adata, n_comps=25, zero_center=None, svd_solver='arpack', 
-          random_state=None, chunked=False, chunk_size=None)
+from pathlib import Path
+TESTS_DIR = Path(__file__).resolve().parent
+adata = ad.read_h5ad(TESTS_DIR.joinpath("data/data_pca.h5ad"))
 
 def test_consensus():
+    np.random.seed(644)
+
     sc3s.tl.consensus(
         adata, 
-        n_clusters = [4, 11],
+        n_clusters = [2, 4],
+        d_range=[2, 5],
+        n_runs = 5,
         n_facility = None,
-        d_range=[20, 25],
-        n_runs = 5
+        multiplier_facility = None,
+        batch_size = 10,
+        random_state = None 
     )
     
     assert 'sc3s_4' in adata.obs
-    assert 'sc3s_11' in adata.obs
+    assert 'sc3s_2' in adata.obs
     
-    assert adjusted_rand_score(adata.obs['sc3s_4'], adata.obs['label2']) > 0
+    ari_score = adjusted_rand_score(
+        adata.obs['sc3s_4'], 
+        adata.obs['label']
+    )
+
+    assert ari_score > 0.18
