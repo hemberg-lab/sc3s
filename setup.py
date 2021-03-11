@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sc3s", 
-    version="0.0.1dev8",
+    version="0.0.1dev9",
     description="Python Single Cell Consensus Clustering",
     url="https://github.com/pittachalk/sc3s",
     author="Fu Xiang Quah",
