@@ -1,0 +1,17 @@
+name: publish-conda
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: publish-to-conda
+      uses: SimonDMurray/conda-package-publish-action@v1.2.2
+      with:
+        subDir: 'conda'
+        AnacondaToken: ${{ secrets.ANACONDA_TOKEN }}
