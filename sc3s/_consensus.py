@@ -39,6 +39,8 @@ def consensus(
     )
 
     # check d_range
+    if d_range is None:
+        d_range = [min(25, X_pca.shape[1])]
     d_range = _check_and_format_integer_list(
         d_range,
         min_val = 2,
