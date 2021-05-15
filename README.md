@@ -50,5 +50,11 @@ The labels can then be used by subsequent functions in Scanpy, for example, plot
 sc.pl.pca(adata, color='sc3s_4')
 ```
 
+## Parameters
+The default settings to work for most use cases, but you can get more information about the parameters with:
+```py
+help(sc3s.tl.consensus)
+```
+
 ## Citation
 Coming soon.
