@@ -59,7 +59,6 @@ def consensus(
     else:
         raise Exception("batch size must be positive integer value (default: 100)")
 
-
     # check random state
     random_state = check_random_state(random_state)
  
@@ -68,15 +67,17 @@ def consensus(
         logging.info(f"n_facility set to {n_facility}, ignoring multiplier_facility parameter...")
     else:
         if multiplier_facility is None:
-            logging.info(f"multiplier_facility not set, using value of 5...")
+            logging.info(f"multiplier_facility not set, using default value of 3...")
             multiplier_facility = 3
-        # calculate the number of facilities, if not provided
-        if max(n_clusters) * multiplier_facility <= n_cells:
-            n_facility = max(n_clusters) * multiplier_facility
-            logging.info(f"number of facilities calculated as {n_facility}")
+        
+        # use multiplier value to calculate
+        n_facility = max(n_clusters) * multiplier_facility
+
+        if n_facility >= n_cells:
+            n_facility = n_cells - 1
+
+        logging.info(f"number of facilities calculated as {n_facility}")    
     
-    # if the number of facilities is too high, raise an error
-    # edge case: the sample has very few cells and user does not specify n_facility
     n_facility = _check_integer_single(
         n_facility, 
         min_val = 2, 
