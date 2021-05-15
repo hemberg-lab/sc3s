@@ -18,6 +18,44 @@ def consensus(
     multiplier_facility = None,
     batch_size = None,
     random_state = None):
+    """\
+    Run consensus clustering to cluster cells in an AnnData object.
+    
+    This function requires the user to perform dimensionality
+    reduction using PCA (`scanpy.tl.pca`) first.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    n_clusters
+        Number of clusters. Default: [3,5,10]
+    d_range
+        Number of PCs. Default is 25, or the number of PCs in the 
+        AnnData object, whichever is lower. Can accept a list
+        (e.g. `[15, 20, 25`]).
+    n_runs
+        Number of realisations to perform for the consensus.
+        Default is 5, recommended > 1.
+    n_facility
+        Number of microclusters. Overridden if `multiplier_facility`
+        is provided with a value.
+    multiplier_facility
+        Multiplier for microclusters. Number of microclusters
+        is calculated as this parameter multiplied by the max of
+        `n_clusters`. Default is 3.
+    batch_size
+        Batch size for k-means. Default is 100.
+    random_state
+        Random state of the algorithm.
+
+    Returns
+    -------
+    AnnData object with cluster labels written in the `.obs` dataframe.
+
+    adata.obs['sc3s_{k}']
+        Labels for `n_clusters = k`.
+    """
 
     logging.basicConfig(level=logging.INFO)
 
