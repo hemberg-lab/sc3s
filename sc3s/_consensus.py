@@ -16,7 +16,7 @@ def consensus(
     n_runs = 5,
     n_facility = None,
     multiplier_facility = None,
-    batch_size = 100,
+    batch_size = None,
     random_state = None):
 
     logging.basicConfig(level=logging.INFO)
@@ -52,6 +52,8 @@ def consensus(
     n_runs = _check_integer_single(n_runs, min_val=1, var_name="n_runs")
 
     # check batch_size
+    if batch_size is None:
+        batch_size=min(100, adata.shape[0])
     if isinstance(batch_size, int):
         assert batch_size <= n_cells, "batch size for k-means must be smaller than number of cells."
     else:
