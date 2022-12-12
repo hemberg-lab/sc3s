@@ -1,5 +1,5 @@
 ## sc3s - efficient scaling of single cell consensus clustering to millions of cells
-SC3s is a package for the unsupervised clustering of single cell datasets. It is an updated version of [SC3](https://github.com/hemberg-lab/SC3), now reimplemented in Python, and integrated into the popular Python single cell toolkit [Scanpy](https://scanpy.readthedocs.io/en/stable/). The algorithm has also been reengineered to allow it to scale efficiently towards millions of cells.
+SC3s, or **Single Cell Consensus Clustering with speed**, is a package for the unsupervised clustering of single cell datasets. It is an updated version of [SC3](https://github.com/hemberg-lab/SC3), now reimplemented in Python, and integrated into the popular Python single cell toolkit [Scanpy](https://scanpy.readthedocs.io/en/stable/). The algorithm has also been reengineered to allow it to scale efficiently towards millions of cells.
 
 
 ## Installation
@@ -56,6 +56,7 @@ sc.pl.pca(adata, color='sc3s_4')
 ```
 
 
-
 ## Citation
-Coming soon.
+Please cite the following publication if you find SC3s useful in your work:
+
+Quah, F.X., Hemberg, M. SC3s: efficient scaling of single cell consensus clustering to millions of cells. *BMC Bioinformatics* **23**, 536 (2022). https://doi.org/10.1186/s12859-022-05085-z
